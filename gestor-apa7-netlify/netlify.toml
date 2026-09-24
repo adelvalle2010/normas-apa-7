@@ -1,0 +1,5 @@
+# Gestor APA 7 — configuración de Netlify
+# No hay paso de compilación: se publica la carpeta tal cual.
+[build]
+  publish = "."
+  command = ""

@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gestor APA 7</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;1,9..144,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&family=Tinos:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<style>
+:root{
+  --bg:#faf8f4; --bg-alt:#f0ece4; --texto:#1f1d1a; --mute:#655f58; --borde:#d9d1c4;
+  --acento:#1f3f8f; --acento-suave:#e4e9f5; --sobre-acento:#ffffff;
+  --papel:#ffffff; --tinta:#141312; --regla:#9a9185; --campo:#ffffff;
+  --sombra:0 1px 0 rgba(40,30,10,.05), 0 18px 40px -26px rgba(40,30,10,.45);
+  --f-disp:'Fraunces', Georgia, 'Times New Roman', serif;
+  --f-texto:'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --f-mono:'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --f-apa:'Times New Roman', Tinos, Times, serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#181715; --bg-alt:#22201d; --texto:#ece7de; --mute:#aaa398; --borde:#3b3731;
+    --acento:#a3b6ee; --acento-suave:#252d45; --sobre-acento:#10131c;
+    --papel:#fbfaf6; --tinta:#141312; --regla:#8d8578; --campo:#1e1c1a;
+    --sombra:0 1px 0 rgba(0,0,0,.3), 0 20px 44px -24px rgba(0,0,0,.8);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#181715; --bg-alt:#22201d; --texto:#ece7de; --mute:#aaa398; --borde:#3b3731;
+  --acento:#a3b6ee; --acento-suave:#252d45; --sobre-acento:#10131c;
+  --papel:#fbfaf6; --tinta:#141312; --regla:#8d8578; --campo:#1e1c1a;
+  --sombra:0 1px 0 rgba(0,0,0,.3), 0 20px 44px -24px rgba(0,0,0,.8);
+  color-scheme:dark;
+}
+:root{ box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+html{ scroll-padding-top:env(safe-area-inset-top,0px); }
+*,*::before,*::after{ box-sizing:inherit; }
+body{ margin:0; background:var(--bg); color:var(--texto); font:17px/1.6 var(--f-texto); -webkit-font-smoothing:antialiased; }
+img,svg{ max-width:100%; }
+button,input,select,textarea{ font:inherit; color:inherit; }
+:focus-visible{ outline:2px solid var(--acento); outline-offset:2px; }
+.envoltura{ max-width:1200px; margin:0 auto; padding:0 clamp(16px,4vw,40px) 64px; }
+
+/* ---------- Cabecera ---------- */
+.cab{ display:flex; flex-wrap:wrap; align-items:flex-end; gap:16px 32px; padding:28px 0 18px; border-bottom:1px solid var(--texto); }
+.marca{ margin-right:auto; }
+.marca small{ display:block; font:500 .72rem/1 var(--f-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--mute); margin-bottom:6px; }
+.marca h1{ margin:0; font:650 clamp(2rem,5vw,2.9rem)/1 var(--f-disp); letter-spacing:-.02em; }
+.marca h1 em{ font-style:italic; font-weight:500; color:var(--acento); }
+.proyecto{ display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap; }
+.proyecto label{ display:block; }
+.proyecto select{ min-width:200px; }
+.estado{ font:400 .75rem/1.3 var(--f-mono); color:var(--mute); max-width:220px; }
+.estado::before{ content:""; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--mute); margin-right:6px; vertical-align:1px; }
+.estado[data-modo="db"]::before{ background:var(--acento); }
+
+/* ---------- Pestañas ---------- */
+.pestanas{ display:flex; gap:4px; overflow-x:auto; border-bottom:1px solid var(--borde); margin-bottom:28px; scrollbar-width:thin; }
+.pestanas button{ background:none; border:0; border-bottom:2px solid transparent; padding:12px 14px 10px; font:500 .8rem/1 var(--f-mono); letter-spacing:.06em; text-transform:uppercase; color:var(--mute); cursor:pointer; white-space:nowrap; }
+.pestanas button:hover{ color:var(--texto); }
+.pestanas button[aria-selected="true"]{ color:var(--texto); border-bottom-color:var(--acento); }
+.panel{ display:none; }
+.panel.activo{ display:block; }
+.panel > h2{ font:650 1.6rem/1.2 var(--f-disp); margin:0 0 4px; letter-spacing:-.01em; }
+.bajada{ color:var(--mute); margin:0 0 24px; max-width:68ch; }
+
+/* ---------- Formularios ---------- */
+.dos{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,470px); gap:40px; align-items:start; }
+@media (max-width:920px){ .dos{ grid-template-columns:1fr; } }
+.etq, label.etq{ display:block; font:500 .7rem/1.2 var(--f-mono); letter-spacing:.08em; text-transform:uppercase; color:var(--mute); margin:0 0 6px; }
+input[type=text],input[type=number],input[type=url],input[type=search],input[type=date],select,textarea{
+  width:100%; background:var(--campo); border:1px solid var(--borde); border-radius:0; padding:9px 11px; font-size:1rem; line-height:1.4; }
+textarea{ min-height:110px; resize:vertical; }
+input:focus,select:focus,textarea:focus{ border-color:var(--acento); outline:none; box-shadow:0 0 0 1px var(--acento); }
+.campo{ margin-bottom:18px; }
+.fila{ display:flex; gap:10px; flex-wrap:wrap; }
+.fila > *{ flex:1 1 140px; }
+.fila > .angosto{ flex:0 1 110px; }
+.ayuda{ font-size:.88rem; color:var(--mute); margin:6px 0 0; }
+.seccion{ border-top:1px solid var(--borde); padding-top:20px; margin-top:8px; }
+.seccion > h3{ font:600 1.05rem/1.3 var(--f-disp); margin:0 0 14px; }
+.chk{ display:flex; gap:10px; align-items:flex-start; margin:6px 0 14px; cursor:pointer; }
+.chk input{ margin-top:5px; accent-color:var(--acento); width:16px; height:16px; flex:none; }
+
+.segmento{ display:flex; flex-wrap:wrap; border:1px solid var(--texto); width:fit-content; max-width:100%; }
+.segmento label{ position:relative; }
+.segmento input{ position:absolute; opacity:0; inset:0; margin:0; cursor:pointer; }
+.segmento span{ display:block; padding:8px 14px; font:500 .78rem/1.2 var(--f-mono); letter-spacing:.03em; border-right:1px solid var(--borde); cursor:pointer; }
+.segmento label:last-child span{ border-right:0; }
+.segmento input:checked + span{ background:var(--texto); color:var(--bg); }
+.segmento input:focus-visible + span{ outline:2px solid var(--acento); outline-offset:-4px; }
+
+.btn{ white-space:nowrap; display:inline-flex; align-items:center; gap:8px; background:transparent; border:1px solid var(--texto); padding:9px 16px; font:500 .8rem/1.2 var(--f-mono); letter-spacing:.04em; cursor:pointer; text-decoration:none; }
+.btn:hover{ background:var(--bg-alt); }
+.btn.primario{ background:var(--acento); border-color:var(--acento); color:var(--sobre-acento); }
+.btn.primario:hover{ filter:brightness(1.08); }
+.btn.chico{ padding:6px 10px; font-size:.72rem; }
+.btn.fantasma{ border-color:transparent; color:var(--mute); }
+.btn.fantasma:hover{ color:var(--texto); background:var(--bg-alt); }
+.btn.peligro[data-armado]{ background:#9b2c2c; border-color:#9b2c2c; color:#fff; }
+.btn:disabled{ opacity:.45; cursor:not-allowed; }
+.acciones{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+
+/* Autores */
+.autor{ display:grid; grid-template-columns:1fr 1fr auto; gap:8px; align-items:end; padding:10px 0; border-bottom:1px dashed var(--borde); }
+.autor .ctrl{ display:flex; gap:2px; }
+.autor .ctrl button{ background:none; border:1px solid transparent; width:32px; height:38px; cursor:pointer; color:var(--mute); font-size:1rem; }
+.autor .ctrl button:hover{ border-color:var(--borde); color:var(--texto); }
+.autor .tag{ grid-column:1/-1; font:500 .66rem/1 var(--f-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--mute); }
+.autor .solo-yt{ grid-column:1/-1; display:none; }
+#formFuente[data-tipo="youtube"] .autor .solo-yt{ display:block; }
+@media (max-width:560px){ .autor{ grid-template-columns:1fr; } }
+
+.importar{ background:var(--bg-alt); border:1px solid var(--borde); padding:18px; margin-bottom:26px; }
+.importar details{ margin-top:12px; }
+.importar summary{ cursor:pointer; font:500 .78rem/1.4 var(--f-mono); color:var(--acento); }
+/* subir archivo */
+.subir{ display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; margin-top:12px; }
+.subir .ayuda{ margin:0; }
+.subir label.btn{ cursor:pointer; }
+/* citas guardadas */
+.guardadas{ list-style:none; margin:8px 0 0; padding:0; }
+.guardadas li{ border-top:1px solid var(--borde); padding:10px 0; }
+.importar textarea{ display:block; max-width:100%;  min-height:90px; font:400 .8rem/1.4 var(--f-mono); }
+.detectado{ font:400 .8rem/1.4 var(--f-mono); color:var(--acento); margin:8px 0 0; min-height:1.2em; }
+
+/* ---------- La hoja (firma visual) ---------- */
+.col-hoja{ position:sticky; top:calc(env(safe-area-inset-top,0px) + 16px); }
+@media (max-width:920px){ .col-hoja{ position:static; } }
+.hoja{ background:var(--papel); color:var(--tinta); box-shadow:var(--sombra); padding:22px clamp(18px,3.4vw,40px) 34px; font:16px/2 var(--f-apa); border:1px solid var(--borde); }
+.hoja .rotulo{ font:500 .66rem/1.2 var(--f-mono); letter-spacing:.12em; text-transform:uppercase; color:#6b645b; margin:0 0 6px; display:flex; justify-content:space-between; gap:8px; }
+.regla{ position:relative; height:22px; margin:0 0 14px; border-bottom:1px solid var(--regla);
+  background:
+   repeating-linear-gradient(to right, var(--regla) 0 1px, transparent 1px 1cm) left bottom/100% 9px no-repeat,
+   repeating-linear-gradient(to right, var(--regla) 0 1px, transparent 1px .25cm) left bottom/100% 4px no-repeat; }
+.regla::before,.regla::after{ content:""; position:absolute; left:0; width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; transform:translateX(-6px); }
+.regla::before{ top:0; border-top:7px solid #1f3f8f; }
+.regla::after{ bottom:-8px; left:1.27cm; border-bottom:7px solid #1f3f8f; }
+.regla span{ position:absolute; left:calc(1.27cm + 10px); top:0; font:400 .62rem/1 var(--f-mono); color:#6b645b; }
+.ref-apa{ margin:0; padding-left:1.27cm; text-indent:-1.27cm; overflow-wrap:anywhere; }
+.ref-vacia{ color:#8a8277; font-style:italic; }
+.hoja h4{ margin:18px 0 0; font:500 .66rem/1.2 var(--f-mono); letter-spacing:.12em; text-transform:uppercase; color:#6b645b; }
+.hoja .linea{ margin:0; }
+.cita-bloque{ margin:0 0 0 1.27cm; padding:0; }
+.cita-intro{ margin:0; text-indent:1.27cm; }
+.notas{ margin:16px 0 0; padding:0; list-style:none; counter-reset:n; }
+.notas li{ counter-increment:n; position:relative; padding:6px 0 6px 30px; font:italic 400 .92rem/1.45 var(--f-texto); color:var(--texto); border-top:1px solid var(--borde); }
+.notas li::before{ content:counter(n); position:absolute; left:0; top:7px; width:20px; height:20px; border:1px solid var(--acento); border-radius:50%; color:var(--acento); font:500 .68rem/18px var(--f-mono); text-align:center; font-style:normal; }
+.notas-titulo{ font:500 .7rem/1 var(--f-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--mute); margin:20px 0 4px; }
+
+/* Medidor de 40 palabras */
+.medidor{ margin:0 0 18px; }
+.medidor .celdas{ display:grid; grid-template-columns:repeat(40,1fr); gap:2px; height:14px; }
+.medidor .celdas i{ background:var(--bg-alt); border:1px solid var(--borde); }
+.medidor .celdas i.on{ background:var(--acento); border-color:var(--acento); }
+.medidor[data-larga] .celdas i{ background:var(--texto); border-color:var(--texto); }
+.medidor p{ margin:6px 0 0; font:400 .78rem/1.3 var(--f-mono); color:var(--mute); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.medidor b{ color:var(--texto); font-weight:500; }
+
+/* ---------- Biblioteca ---------- */
+.herramientas{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:18px; }
+.herramientas .campo{ margin:0; flex:1 1 220px; }
+.item{ border-top:1px solid var(--borde); padding:18px 0; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px 24px; }
+.item:last-child{ border-bottom:1px solid var(--borde); }
+.item .ref{ font:16px/1.7 var(--f-apa); padding-left:1.27cm; text-indent:-1.27cm; margin:0; overflow-wrap:anywhere; }
+.item .meta{ grid-column:1/-1; display:flex; flex-wrap:wrap; gap:6px 14px; font:400 .72rem/1.3 var(--f-mono); color:var(--mute); }
+.item .meta .pill{ border:1px solid var(--borde); padding:2px 7px; }
+.item .meta .pill.biblio{ border-color:var(--acento); color:var(--acento); }
+.item .botones{ display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end; align-content:flex-start; max-width:260px; }
+@media (max-width:640px){ .item{ grid-template-columns:1fr; } .item .botones{ justify-content:flex-start; max-width:none; } }
+.item .citas-item{ grid-column:1/-1; margin:0; padding:0 0 0 1.27cm; list-style:none; }
+.item .citas-item li{ font:15px/1.6 var(--f-apa); padding:4px 0; display:flex; gap:10px; align-items:baseline; justify-content:space-between; border-top:1px dotted var(--borde); }
+.vacio{ border:1px dashed var(--borde); padding:34px 24px; text-align:center; color:var(--mute); }
+.vacio strong{ display:block; font:600 1.15rem/1.3 var(--f-disp); color:var(--texto); margin-bottom:6px; }
+
+/* Lista final */
+.lista-final .hoja{ max-width:820px; margin:0 auto; padding:clamp(24px,6vw,72px) clamp(20px,7vw,80px); }
+.lista-final .titulo-lista{ text-align:center; font-weight:700; margin:0; }
+.lista-final .ref-apa{ margin:0; }
+
+/* Verificador */
+.resultado{ margin-top:24px; }
+.resultado h3{ font:600 1.1rem/1.3 var(--f-disp); margin:22px 0 8px; display:flex; gap:10px; align-items:baseline; }
+.resultado h3 .n{ font:500 .8rem/1 var(--f-mono); color:var(--acento); }
+.resultado ul{ margin:0; padding:0; list-style:none; }
+.resultado li{ padding:8px 0; border-top:1px solid var(--borde); }
+.resultado li code, .guia code{ font:400 .85em var(--f-mono); background:var(--bg-alt); padding:1px 5px; }
+.ok{ color:var(--acento); font:500 .85rem var(--f-mono); }
+
+/* Guía */
+.guia{ display:grid; grid-template-columns:200px minmax(0,1fr); gap:40px; }
+.guia nav{ position:sticky; top:calc(env(safe-area-inset-top,0px) + 16px); align-self:start; display:flex; flex-direction:column; gap:2px; }
+.guia nav a{ font:400 .8rem/1.3 var(--f-mono); color:var(--mute); text-decoration:none; padding:5px 0 5px 10px; border-left:1px solid var(--borde); }
+.guia nav a:hover{ color:var(--texto); border-left-color:var(--acento); }
+.guia article{ max-width:72ch; }
+.guia section{ padding:6px 0 22px; border-bottom:1px solid var(--borde); margin-bottom:18px; }
+.guia h3{ font:650 1.3rem/1.25 var(--f-disp); margin:0 0 8px; }
+.guia p{ margin:0 0 10px; }
+.ejemplo{ font:16px/2 var(--f-apa); background:var(--papel); color:var(--tinta); border:1px solid var(--borde); padding:10px 18px; margin:10px 0; overflow-wrap:anywhere; }
+.ejemplo.ref{ padding-left:calc(18px + 1.27cm); text-indent:-1.27cm; }
+.ejemplo .rot{ display:block; text-indent:0; font:500 .62rem/1.6 var(--f-mono); letter-spacing:.1em; text-transform:uppercase; color:#6b645b; }
+.mal{ text-decoration:line-through; text-decoration-color:#9b2c2c; }
+.tabla-guia{ overflow-x:auto; }
+.tabla-guia table{ border-collapse:collapse; width:100%; font-size:.95rem; }
+.tabla-guia th,.tabla-guia td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--borde); vertical-align:top; }
+.tabla-guia th{ font:500 .7rem/1.2 var(--f-mono); letter-spacing:.08em; text-transform:uppercase; color:var(--mute); }
+.tabla-guia td:not(:first-child){ font-family:var(--f-apa); }
+@media (max-width:820px){ .guia{ grid-template-columns:1fr; } .guia nav{ position:static; flex-direction:row; flex-wrap:wrap; } .guia nav a{ border-left:0; border-bottom:1px solid var(--borde); padding:4px 8px; } }
+
+/* Diálogo y aviso */
+dialog{ border:1px solid var(--texto); background:var(--bg); color:var(--texto); padding:24px; max-width:min(420px,92vw); }
+dialog::backdrop{ background:rgba(20,18,15,.45); }
+dialog h3{ font:650 1.2rem/1.2 var(--f-disp); margin:0 0 14px; }
+.aviso{ position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom,0px) + 20px); transform:translate(-50%,20px); opacity:0; pointer-events:none; background:var(--texto); color:var(--bg); padding:10px 18px; font:500 .8rem/1.3 var(--f-mono); transition:opacity .2s, transform .2s; z-index:10; max-width:90vw; }
+.aviso.visible{ opacity:1; transform:translate(-50%,0); }
+[hidden]{ display:none !important; }
+@media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+<div class="envoltura">
+<header class="cab">
+  <div class="marca"><small>Gestor de normas</small><h1>APA <em>7.ª</em></h1></div>
+  <div class="proyecto">
+    <div><label class="etq" for="selProyecto">Proyecto</label><select id="selProyecto"></select></div>
+    <button class="btn chico" id="btnNuevoProyecto" type="button">Nuevo proyecto</button>
+  </div>
+  <p class="estado" id="estado" data-modo="local">Guardado en este navegador</p>
+</header>
+
+<nav class="pestanas" role="tablist" aria-label="Secciones">
+  <button role="tab" data-panel="referencia" aria-selected="true">Nueva referencia</button>
+  <button role="tab" data-panel="cita" aria-selected="false">Citar</button>
+  <button role="tab" data-panel="biblioteca" aria-selected="false">Biblioteca</button>
+  <button role="tab" data-panel="lista" aria-selected="false">Lista final</button>
+  <button role="tab" data-panel="verificar" aria-selected="false">Verificar trabajo</button>
+  <button role="tab" data-panel="guia" aria-selected="false">Guía APA</button>
+</nav>
+
+<!-- ============ NUEVA REFERENCIA ============ -->
+<section class="panel activo" id="p-referencia" role="tabpanel">
+  <h2 id="tituloRef">Nueva referencia</h2>
+  <p class="bajada">Pega un enlace para empezar, o completa los datos a mano. La hoja de la derecha muestra la referencia tal como va en tu trabajo.</p>
+  <div class="dos">
+    <div>
+      <div class="importar">
+        <label class="etq" for="urlEntrada">Enlace, DOI o ISBN</label>
+        <div class="fila">
+          <input type="text" id="urlEntrada" placeholder="https://… · 10.1037/… · 978-…" autocomplete="off">
+          <button class="btn primario angosto" type="button" id="btnDetectar">Leer datos</button>
+        </div>
+        <p class="detectado" id="detectado" aria-live="polite"></p>
+        <div class="subir">
+          <label class="btn chico" for="archivoFuente">Subir PDF o página guardada…</label>
+          <input type="file" id="archivoFuente" accept=".pdf,application/pdf,.html,.htm,text/html" hidden>
+          <span class="ayuda">Se lee en tu equipo: el archivo no sale de tu navegador.</span>
+        </div>
+        <p class="ayuda" id="notaClaude" hidden>Dentro de Claude esta página no puede conectarse a otros sitios, así que desde un enlace solo reconoce el tipo de fuente. Para completar el resto, sube el PDF o pega el código fuente. Publicada en tu propio sitio, con el lector de enlaces, basta con pegar la URL.</p>
+        <details id="detImportar">
+          <summary>Completar autor, título y fecha desde la página</summary>
+          <p class="ayuda">Esta herramienta no entra a otros sitios por su cuenta. Abre el enlace, presiona <b>Ctrl+U</b> (en Mac, <b>⌥⌘U</b>) para ver el código fuente, copia todo con Ctrl+A y Ctrl+C, y pégalo acá. Se leen los metadatos que la página declara: autor, título, fecha, sitio y DOI.</p>
+          <textarea id="fuenteHTML" placeholder="&lt;html&gt;…"></textarea>
+          <div class="acciones"><button class="btn" type="button" id="btnLeerHTML">Leer metadatos</button></div>
+          <div id="zonaClaude" hidden>
+            <p class="ayuda" style="margin-top:18px">¿No tienes el código fuente? Pega el texto visible (encabezado del artículo, descripción del video, página de créditos del libro) y Claude lo ordena en los campos.</p>
+            <textarea id="textoLibre" placeholder="Pega aquí el texto de la página…"></textarea>
+            <div class="acciones"><button class="btn" type="button" id="btnClaude">Ordenar con Claude</button></div>
+          </div>
+        </details>
+        <details id="detAjustes" hidden>
+          <summary>Lector de enlaces</summary>
+          <p class="ayuda">Dirección de tu lector de enlaces. Publicada en Netlify con su carpeta <code>netlify/</code>, ya viene configurada como <code>/api/lector</code>; si usas un Cloudflare Worker, pega aquí su dirección. Con él se leen páginas web, PDF y videos desde la URL. Sin él, igual se completan los DOI y los ISBN.</p>
+          <div class="fila"><input type="url" id="proxyURL" placeholder="https://lector-apa.tu-cuenta.workers.dev"><button class="btn angosto" type="button" id="btnProxy">Guardar</button></div>
+        </details>
+      </div>
+
+      <form id="formFuente" data-tipo="web" autocomplete="off" onsubmit="return false">
+        <div class="campo">
+          <span class="etq">Tipo de fuente</span>
+          <div class="segmento" role="radiogroup" aria-label="Tipo de fuente">
+            <label><input type="radio" name="tipo" value="libro"><span>Libro</span></label>
+            <label><input type="radio" name="tipo" value="capitulo"><span>Capítulo</span></label>
+            <label><input type="radio" name="tipo" value="articulo"><span>Artículo</span></label>
+            <label><input type="radio" name="tipo" value="web" checked><span>Página web</span></label>
+            <label><input type="radio" name="tipo" value="youtube"><span>Video de YouTube</span></label>
+          </div>
+        </div>
+
+        <div class="seccion">
+          <h3>Autoría</h3>
+          <div id="autores"></div>
+          <div class="acciones" style="margin-top:10px">
+            <button class="btn chico" type="button" data-agregar="persona" data-destino="autores">+ Persona</button>
+            <button class="btn chico" type="button" data-agregar="grupo" data-destino="autores">+ Organización o canal</button>
+          </div>
+          <p class="ayuda">El orden importa: es el orden de la obra. Si no hay autor, deja la lista vacía y el título pasa a ocupar su lugar.</p>
+        </div>
+
+        <div class="seccion">
+          <h3>Publicación</h3>
+          <div class="fila campo">
+            <div class="angosto"><label class="etq" for="f-anio">Año</label><input type="number" id="f-anio" min="1000" max="2100" placeholder="s.f."></div>
+            <div data-para="web youtube"><label class="etq" for="f-mes">Mes</label><select id="f-mes"><option value="">—</option></select></div>
+            <div class="angosto" data-para="web youtube"><label class="etq" for="f-dia">Día</label><input type="number" id="f-dia" min="1" max="31"></div>
+          </div>
+          <div class="campo"><label class="etq" for="f-titulo" id="etqTitulo">Título</label><input type="text" id="f-titulo"><p class="ayuda">En tipo oración: solo la primera palabra, la que sigue a los dos puntos y los nombres propios llevan mayúscula.</p></div>
+
+          <div data-para="capitulo">
+            <span class="etq">Editores del libro</span>
+            <div id="editores"></div>
+            <div class="acciones" style="margin:8px 0 18px"><button class="btn chico" type="button" data-agregar="persona" data-destino="editores">+ Editor</button></div>
+            <div class="campo"><label class="etq" for="f-tituloLibro">Título del libro</label><input type="text" id="f-tituloLibro"></div>
+          </div>
+          <div class="campo" data-para="articulo"><label class="etq" for="f-revista">Revista</label><input type="text" id="f-revista"></div>
+          <div class="fila campo" data-para="articulo">
+            <div><label class="etq" for="f-volumen">Volumen</label><input type="text" id="f-volumen"></div>
+            <div><label class="etq" for="f-numero">Número</label><input type="text" id="f-numero"></div>
+            <div><label class="etq" for="f-numeroArticulo">N.º de artículo</label><input type="text" id="f-numeroArticulo" placeholder="si no hay páginas"></div>
+          </div>
+          <div class="fila campo" data-para="libro capitulo articulo">
+            <div data-para="capitulo articulo"><label class="etq" for="f-paginas">Páginas</label><input type="text" id="f-paginas" placeholder="45-67"></div>
+            <div data-para="libro"><label class="etq" for="f-edicion">Edición</label><input type="number" id="f-edicion" min="1" placeholder="1"></div>
+            <div data-para="libro capitulo"><label class="etq" for="f-editorial">Editorial</label><input type="text" id="f-editorial"></div>
+          </div>
+          <div class="campo" data-para="web"><label class="etq" for="f-sitio">Nombre del sitio</label><input type="text" id="f-sitio"><p class="ayuda">Se omite solo si coincide con el autor.</p></div>
+        </div>
+
+        <div class="seccion">
+          <h3>Ubicación</h3>
+          <div class="campo"><label class="etq" for="f-doi">DOI</label><input type="text" id="f-doi" placeholder="10.xxxx/xxxxx"><p class="ayuda">Si la fuente tiene DOI, se usa en lugar de la URL.</p></div>
+          <div class="campo"><label class="etq" for="f-url">URL</label><input type="url" id="f-url"></div>
+          <div data-para="web">
+            <label class="chk"><input type="checkbox" id="f-cambiante"><span>El contenido cambia con el tiempo (perfiles, páginas que se actualizan sin archivo). Agrega "Recuperado el…".</span></label>
+            <div class="campo" id="wrapConsulta" hidden><label class="etq" for="f-consulta">Fecha de consulta</label><input type="date" id="f-consulta"></div>
+          </div>
+        </div>
+
+        <div class="seccion">
+          <h3>Para tu organización</h3>
+          <div class="campo"><label class="etq" for="f-etiquetas">Etiquetas</label><input type="text" id="f-etiquetas" placeholder="marco teórico, capítulo 2"><p class="ayuda">Separadas por coma.</p></div>
+          <div class="campo"><label class="etq" for="f-notas">Notas</label><textarea id="f-notas" style="min-height:70px"></textarea></div>
+          <label class="chk"><input type="checkbox" id="f-consultada"><span>La consulté pero no la cito en el texto. Va en la bibliografía, no en las referencias.</span></label>
+        </div>
+      </form>
+    </div>
+
+    <aside class="col-hoja" aria-label="Vista previa">
+      <div class="hoja">
+        <p class="rotulo"><span>Así queda en tu trabajo</span><span id="rotTipo"></span></p>
+        <div class="regla" aria-hidden="true"><span>sangría francesa 1,27 cm</span></div>
+        <p class="ref-apa" id="prevRef"></p>
+        <h4>Cita parentética</h4>
+        <p class="linea" id="prevPar"></p>
+        <h4>Cita narrativa</h4>
+        <p class="linea" id="prevNar"></p>
+      </div>
+      <p class="notas-titulo" id="notasTitulo" hidden>Revisar antes de entregar</p>
+      <ol class="notas" id="prevAdv"></ol>
+      <div class="acciones">
+        <button class="btn primario" type="button" id="btnGuardar">Guardar en la biblioteca</button>
+        <button class="btn" type="button" id="btnCopiarRef">Copiar con formato</button>
+        <button class="btn fantasma" type="button" id="btnCopiarRefTxt">Copiar texto</button>
+        <button class="btn fantasma" type="button" id="btnLimpiar">Empezar otra</button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ CITAR ============ -->
+<section class="panel" id="p-cita" role="tabpanel">
+  <h2>Citar</h2>
+  <p class="bajada">Elige una fuente de la biblioteca y pega el fragmento. Menos de 40 palabras va entre comillas dentro del párrafo; desde 40, en bloque con sangría y sin comillas.</p>
+  <div id="citaVacia" class="vacio" hidden><strong>Todavía no hay fuentes en este proyecto</strong>Guarda una referencia para poder citarla.<div class="acciones" style="justify-content:center"><button class="btn primario" type="button" data-ir="referencia">Crear una referencia</button></div></div>
+  <div class="dos" id="citaContenido">
+    <div>
+      <div class="campo"><label class="etq" for="citaFuente">Fuente</label><select id="citaFuente"></select></div>
+      <div class="campo">
+        <span class="etq">Qué vas a hacer</span>
+        <div class="segmento" role="radiogroup" aria-label="Tipo de cita">
+          <label><input type="radio" name="citaTipo" value="textual" checked><span>Cita textual</span></label>
+          <label><input type="radio" name="citaTipo" value="parafrasis"><span>Paráfrasis</span></label>
+        </div>
+      </div>
+      <div class="campo" id="wrapTextoCita">
+        <label class="etq" for="citaTexto">Fragmento citado, palabra por palabra</label>
+        <textarea id="citaTexto" placeholder="Copia el fragmento exactamente como aparece en la fuente."></textarea>
+      </div>
+      <div class="medidor" id="medidor"><div class="celdas" aria-hidden="true"></div><p><span id="medidorTxt">0 / 40 palabras</span><b id="medidorTipo">Cita corta</b></p></div>
+      <div class="campo">
+        <span class="etq">Forma</span>
+        <div class="segmento" role="radiogroup" aria-label="Forma de la cita">
+          <label><input type="radio" name="citaModo" value="parentetica" checked><span>Parentética (Autor, año)</span></label>
+          <label><input type="radio" name="citaModo" value="narrativa"><span>Narrativa Autor (año)</span></label>
+        </div>
+      </div>
+      <div class="fila campo">
+        <div class="angosto" style="flex-basis:150px"><label class="etq" for="locTipo">Localizador</label>
+          <select id="locTipo"><option value="p">Página</option><option value="pp">Páginas</option><option value="parr">Párrafo</option><option value="min">Minuto</option><option value="otro">Otro</option><option value="">Ninguno</option></select></div>
+        <div><label class="etq" for="locValor">Valor</label><input type="text" id="locValor" placeholder="45 · 45-46 · 3 · 01:23"></div>
+      </div>
+      <div class="campo" id="wrapVerbo"><label class="etq" for="citaVerbo">Verbo de la cita narrativa</label><input type="text" id="citaVerbo" value="señala" list="verbos"><datalist id="verbos"><option value="señala"><option value="afirma"><option value="sostiene"><option value="explica"><option value="advierte"><option value="plantea"><option value="define"></datalist></div>
+      <label class="chk" id="wrapPrimera"><input type="checkbox" id="citaPrimera" checked><span>Primera mención de la organización en el trabajo: se escribe el nombre completo con la sigla entre corchetes.</span></label>
+      <div class="campo"><label class="etq" for="citaNota">Nota (para ti)</label><input type="text" id="citaNota" placeholder="Para la introducción"></div>
+    </div>
+    <aside class="col-hoja">
+      <div class="hoja"><p class="rotulo"><span>Así queda en el texto</span><span id="rotCita"></span></p><div class="regla" aria-hidden="true"><span>sangría 1,27 cm</span></div><div id="prevCita"></div></div>
+      <ol class="notas" id="advCita"></ol>
+      <div class="acciones">
+        <button class="btn primario" type="button" id="btnGuardarCita">Guardar cita</button>
+        <button class="btn" type="button" id="btnCopiarCita">Copiar con formato</button>
+        <button class="btn fantasma" type="button" id="btnCopiarCitaTxt">Copiar texto</button>
+      </div>
+      <p class="notas-titulo">Citas guardadas de esta fuente</p>
+      <ul class="guardadas" id="citasDeFuente"></ul>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ BIBLIOTECA ============ -->
+<section class="panel" id="p-biblioteca" role="tabpanel">
+  <h2>Biblioteca</h2>
+  <p class="bajada" id="bajadaBiblio"></p>
+  <div class="herramientas">
+    <div class="campo"><label class="etq" for="buscar">Buscar</label><input type="search" id="buscar" placeholder="Autor, título, etiqueta…"></div>
+    <div class="campo" style="flex:0 1 190px"><label class="etq" for="filtroTipo">Tipo</label><select id="filtroTipo"><option value="">Todos</option><option value="libro">Libros</option><option value="capitulo">Capítulos</option><option value="articulo">Artículos</option><option value="web">Páginas web</option><option value="youtube">Videos</option></select></div>
+    <button class="btn chico" type="button" id="btnRenombrar">Renombrar proyecto</button>
+    <button class="btn chico peligro" type="button" id="btnBorrarProyecto">Eliminar proyecto</button>
+  </div>
+  <div id="listaBiblio"></div>
+  <div class="seccion" style="margin-top:32px">
+    <h3>Copia de seguridad</h3>
+    <p class="ayuda" style="margin-bottom:12px">Guarda todos tus proyectos en un archivo .json, o recupéralos desde uno.</p>
+    <div class="acciones"><button class="btn" type="button" id="btnExportarJSON">Descargar copia (.json)</button><label class="btn" for="archivoJSON" style="cursor:pointer">Cargar copia…</label><input type="file" id="archivoJSON" accept=".json,application/json" hidden></div>
+  </div>
+</section>
+
+<!-- ============ LISTA FINAL ============ -->
+<section class="panel lista-final" id="p-lista" role="tabpanel">
+  <h2>Lista final</h2>
+  <p class="bajada">Ordenada alfabéticamente, con sufijos a/b para mismo autor y año, sangría francesa e interlineado doble. Va en una página nueva al final del trabajo.</p>
+  <div class="acciones" style="margin-bottom:22px">
+    <button class="btn primario" type="button" id="btnDocx">Descargar Word (.docx)</button>
+    <button class="btn" type="button" id="btnCopiarLista">Copiar con formato</button>
+    <button class="btn fantasma" type="button" id="btnCopiarListaTxt">Copiar texto</button>
+  </div>
+  <div class="hoja" id="hojaLista"></div>
+</section>
+
+<!-- ============ VERIFICAR ============ -->
+<section class="panel" id="p-verificar" role="tabpanel">
+  <h2>Verificar trabajo</h2>
+  <p class="bajada">Pega el texto de tu trabajo. Se buscan las citas en el texto y se cruzan con las referencias del proyecto: citas sin referencia, referencias que nunca se citan y usos incorrectos de "et al." o "&amp;".</p>
+  <div class="campo"><label class="etq" for="textoTrabajo">Texto del trabajo</label><textarea id="textoTrabajo" style="min-height:220px" placeholder="Pega aquí el cuerpo del trabajo (sin la lista de referencias)."></textarea></div>
+  <div class="acciones"><button class="btn primario" type="button" id="btnVerificar">Verificar</button></div>
+  <div class="resultado" id="resultadoVerif"></div>
+</section>
+
+<!-- ============ GUÍA ============ -->
+<section class="panel" id="p-guia" role="tabpanel">
+  <h2>Guía APA 7.ª edición</h2>
+  <p class="bajada">Las reglas que aplica esta herramienta, con ejemplos. Versión en español: "y" en lugar de "&amp;", "s.f." y "Recuperado el".</p>
+  <div class="guia">
+    <nav aria-label="Temas de la guía">
+      <a href="#g-corta">Cita corta</a><a href="#g-larga">Cita larga</a><a href="#g-parafrasis">Paráfrasis</a><a href="#g-autores">Cantidad de autores</a><a href="#g-grupo">Autor corporativo</a><a href="#g-falta">Sin autor o sin fecha</a><a href="#g-lista">Lista de referencias</a><a href="#g-tipos">Plantillas por tipo</a><a href="#g-biblio">Referencias y bibliografía</a><a href="#g-errores">Errores frecuentes</a>
+    </nav>
+    <article>
+      <section id="g-corta"><h3>Cita textual corta (menos de 40 palabras)</h3>
+        <p>Va dentro del párrafo, entre comillas, con el localizador. El punto va después del paréntesis.</p>
+        <div class="ejemplo"><span class="rot">Parentética</span>La memoria de trabajo tiene "una capacidad muy limitada" (Baddeley, 2012, p. 7).</div>
+        <div class="ejemplo"><span class="rot">Narrativa</span>Baddeley (2012) sostiene que la memoria de trabajo tiene "una capacidad muy limitada" (p. 7).</div>
+        <p>Localizadores: <code>p. 7</code>, <code>pp. 7–9</code>, <code>párr. 3</code> si no hay páginas, y la marca de tiempo <code>01:23:45</code> en videos.</p></section>
+      <section id="g-larga"><h3>Cita textual larga (40 palabras o más)</h3>
+        <p>Bloque aparte, con sangría izquierda de 1,27 cm, sin comillas y con el mismo interlineado del trabajo. La cita entre paréntesis va <b>después</b> del punto final.</p>
+        <div class="ejemplo" style="padding-left:calc(18px + 1.27cm)">…texto de cuarenta palabras o más que termina con su propio punto. (Pérez, 2020, p. 45)</div></section>
+      <section id="g-parafrasis"><h3>Paráfrasis</h3>
+        <p>Ideas de otro autor con tus palabras: sin comillas. El localizador no es obligatorio, pero APA lo recomienda cuando ayuda a encontrar el pasaje.</p>
+        <div class="ejemplo">La memoria de trabajo solo retiene unos pocos elementos a la vez (Baddeley, 2012).</div></section>
+      <section id="g-autores"><h3>Cantidad de autores en la cita</h3>
+        <div class="tabla-guia"><table><thead><tr><th>Autores</th><th>Parentética</th><th>Narrativa</th></tr></thead><tbody>
+          <tr><td>Uno</td><td>(Pérez, 2020)</td><td>Pérez (2020)</td></tr>
+          <tr><td>Dos</td><td>(Pérez y Gómez, 2020)</td><td>Pérez y Gómez (2020)</td></tr>
+          <tr><td>Tres o más</td><td>(Pérez et al., 2020)</td><td>Pérez et al. (2020)</td></tr>
+        </tbody></table></div>
+        <p>"Et al." se usa desde la primera cita. En la lista de referencias se escriben hasta 20 autores; con 21 o más, los primeros 19, puntos suspensivos y el último.</p></section>
+      <section id="g-grupo"><h3>Autor corporativo</h3>
+        <p>Si tiene una sigla conocida, la primera cita lleva el nombre completo y la sigla; las siguientes, solo la sigla. En la lista de referencias va siempre el nombre completo.</p>
+        <div class="ejemplo"><span class="rot">Primera vez</span>(Organización Mundial de la Salud [OMS], 2023) · Organización Mundial de la Salud (OMS, 2023)</div>
+        <div class="ejemplo"><span class="rot">Siguientes</span>(OMS, 2023)</div></section>
+      <section id="g-falta"><h3>Sin autor o sin fecha</h3>
+        <p>Sin autor, el título ocupa el lugar del autor: en cursiva si es una obra independiente (libro, página, video) y entre comillas si es parte de algo mayor (artículo, capítulo). Sin fecha, se escribe <code>s.f.</code></p>
+        <div class="ejemplo">(<i>Guía de estilo</i>, s.f.) · ("La nueva ley de medios", 2021)</div>
+        <p>Antes de aceptar "sin autor", mira el pie de la página: casi siempre hay una organización responsable.</p></section>
+      <section id="g-lista"><h3>Formato de la lista de referencias</h3>
+        <p>Página nueva, título <b>Referencias</b> centrado y en negrita, interlineado doble, sangría francesa de 1,27 cm y orden alfabético por el primer elemento. Mismo autor: primero la obra más antigua. Mismo autor y mismo año: 2020a, 2020b, ordenadas por título. Los títulos de obras van en tipo oración; el nombre de las revistas mantiene sus mayúsculas.</p></section>
+      <section id="g-tipos"><h3>Plantillas por tipo</h3>
+        <div class="ejemplo ref"><span class="rot">Libro</span>Apellido, A. A. (Año). <i>Título del libro</i> (2.ª ed.). Editorial. https://doi.org/…</div>
+        <div class="ejemplo ref"><span class="rot">Capítulo en libro editado</span>Apellido, A. (Año). Título del capítulo. En B. Editor y C. Editor (Eds.), <i>Título del libro</i> (pp. 45–67). Editorial.</div>
+        <div class="ejemplo ref"><span class="rot">Artículo de revista</span>Apellido, A., y Apellido, B. (Año). Título del artículo. <i>Nombre de la Revista</i>, <i>12</i>(3), 45–67. https://doi.org/…</div>
+        <div class="ejemplo ref"><span class="rot">Página web</span>Autor. (Año, día de mes). <i>Título de la página</i>. Nombre del sitio. URL</div>
+        <div class="ejemplo ref"><span class="rot">Video de YouTube</span>Canal o autor. (Año, día de mes). <i>Título del video</i> [Video]. YouTube. URL</div>
+        <p>En YouTube, el autor es quien subió el video. Si la cuenta tiene un nombre distinto al de la persona: <code>Apellido, A. [Nombre del canal].</code></p></section>
+      <section id="g-biblio"><h3>Referencias y bibliografía</h3>
+        <p>APA pide <b>Referencias</b>: solo las obras citadas en el texto, y cada cita debe tener su referencia. La <b>Bibliografía</b> (obras consultadas pero no citadas) solo va si tu docente o tu institución la piden. Marca esas fuentes como "consultadas" y aparecerán en una lista aparte.</p></section>
+      <section id="g-errores"><h3>Errores frecuentes</h3>
+        <div class="ejemplo"><span class="rot">Punto antes de la cita</span><span class="mal">"…muy limitada." (Baddeley, 2012, p. 7)</span> → "…muy limitada" (Baddeley, 2012, p. 7).</div>
+        <div class="ejemplo"><span class="rot">Comillas en cita larga</span>Las citas en bloque nunca llevan comillas.</div>
+        <div class="ejemplo"><span class="rot">Tipo Título</span><span class="mal"><i>La Historia De La Informática</i></span> → <i>La historia de la informática</i></div>
+        <div class="ejemplo"><span class="rot">"Recuperado de" innecesario</span>Solo se usa con contenido que cambia; con DOI, nunca.</div>
+        <div class="ejemplo"><span class="rot">DOI viejo</span><span class="mal">doi:10.1037/ppm0000185</span> → https://doi.org/10.1037/ppm0000185</div></section>
+    </article>
+  </div>
+</section>
+</div>
+
+<dialog id="dlgProyecto">
+  <h3 id="dlgTitulo">Nuevo proyecto</h3>
+  <label class="etq" for="dlgNombre">Nombre</label>
+  <input type="text" id="dlgNombre" placeholder="Monografía de Historia">
+  <div class="acciones"><button class="btn primario" type="button" id="dlgOk">Crear</button><button class="btn fantasma" type="button" id="dlgCancelar">Cancelar</button></div>
+</dialog>
+<div class="aviso" id="aviso" role="status" aria-live="polite"></div>
+<script>
+/* ===== Motor APA 7 (español) ===== */
+const APA = (() => {
+  const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const fusionar = segs => { const out=[]; for (const s of segs){ if(!s.t) continue; const u=out[out.length-1]; if(u && !!u.i===!!s.i) u.t+=s.t; else out.push({...s}); } return out; };
+  const aHTML = segs => fusionar(segs).map(s => s.i ? `<i>${esc(s.t)}</i>` : esc(s.t)).join('');
+  const aTexto = segs => segs.map(s => s.t).join('');
+  const terminaPunt = s => /[.?!]$/.test(String(s).trim());
+  const conPunto = s => terminaPunt(s) ? s : s + '.';
+  const punto = s => terminaPunt(s) ? '' : '.';
+  const rango = p => String(p).trim().replace(/\s*[-‐‑–—]\s*/g, '–');
+  const vacio = v => v === undefined || v === null || String(v).trim() === '';
+  const normalizarDOI = d => 'https://doi.org/' + String(d).trim().replace(/^(https?:\/\/)?(dx\.)?doi\.org\//i,'').replace(/^doi:\s*/i,'');
+  const contarPalabras = s => String(s).trim().split(/\s+/).filter(Boolean).length;
+  const pareceTipoTitulo = t => { const w = String(t).split(/\s+/).slice(1).filter(x => x.length > 3 && /^\p{L}/u.test(x)); if (w.length < 3) return false; return w.filter(x => /^\p{Lu}/u.test(x)).length / w.length > 0.6; };
+
+  const textoFecha = f => { f = f || {}; if (!f.anio) return 's.f.' + (f.sufijo ? '-' + f.sufijo : ''); let s = `${f.anio}${f.sufijo || ''}`; if (f.mes) s += ', ' + (f.dia ? f.dia + ' de ' : '') + MESES[f.mes - 1]; return s; };
+  const anioCita = f => { f = f || {}; return f.anio ? `${f.anio}${f.sufijo || ''}` : 's.f.' + (f.sufijo ? '-' + f.sufijo : ''); };
+  const fechaLarga = f => [f.dia ? f.dia + ' de' : '', f.mes ? MESES[f.mes - 1] + ' de' : '', f.anio || ''].filter(Boolean).join(' ');
+
+  function normalizarIniciales(s) {
+    const out = [];
+    for (const crudo of String(s || '').trim().split(/\s+/).filter(Boolean)) {
+      const tok = crudo.replace(/\./g, ''); if (!tok) continue;
+      if (/^\p{Lu}{2,}$/u.test(tok)) { for (const ch of tok) out.push(ch + '.'); continue; }
+      out.push(tok.split('-').filter(Boolean).map(p => p[0].toUpperCase() + '.').join('-'));
+    }
+    return out.join(' ');
+  }
+  const nombreRef = a => a.tipo === 'grupo' ? a.nombre : `${a.apellido}, ${normalizarIniciales(a.iniciales)}` + (a.usuario ? ` [${a.usuario}]` : '');
+  function autoresRef(autores) {
+    const n = autores.map(nombreRef); let s;
+    if (n.length === 1) s = n[0];
+    else if (n.length === 2) s = `${n[0]}, y ${n[1]}`;
+    else if (n.length <= 20) s = `${n.slice(0, -1).join(', ')}, y ${n[n.length - 1]}`;
+    else s = `${n.slice(0, 19).join(', ')}, . . . ${n[n.length - 1]}`;
+    return conPunto(s);
+  }
+  function editoresTexto(eds) {
+    const n = eds.map(a => a.tipo === 'grupo' ? a.nombre : `${normalizarIniciales(a.iniciales)} ${a.apellido}`);
+    const lista = n.length <= 2 ? n.join(' y ') : `${n.slice(0, -1).join(', ')} y ${n[n.length - 1]}`;
+    return `${lista} (${n.length === 1 ? 'Ed.' : 'Eds.'})`;
+  }
+  const apellidoCita = a => a.tipo === 'persona' ? a.apellido : a.nombre;
+  const autoresValidos = f => (f.autores || []).filter(a => a.tipo === 'grupo' ? !vacio(a.nombre) : !vacio(a.apellido));
+
+  function elementoTitulo(f) {
+    const t = f.titulo || '';
+    switch (f.tipo) {
+      case 'libro': { const ed = f.edicion > 1 ? ` (${f.edicion}.ª ed.)` : ''; return [{ t, i: true }, { t: ed }, { t: ed ? '.' : punto(t) }]; }
+      case 'web': return [{ t, i: true }, { t: punto(t) }];
+      case 'youtube': return [{ t, i: true }, { t: ' [Video].' }];
+      default: return [{ t: t + punto(t) }];
+    }
+  }
+  const autorEsSitio = (f, sitio) => { const a = autoresValidos(f); return !vacio(sitio) && a.length === 1 && a[0].tipo === 'grupo' && a[0].nombre.trim().toLowerCase() === sitio.trim().toLowerCase(); };
+  function elementoFuente(f) {
+    switch (f.tipo) {
+      case 'libro': return !vacio(f.editorial) && !autorEsSitio(f, f.editorial) ? [{ t: ` ${f.editorial}.` }] : [];
+      case 'capitulo': {
+        const s = [{ t: ' En ' }]; const eds = (f.editores || []).filter(a => a.tipo === 'grupo' ? !vacio(a.nombre) : !vacio(a.apellido));
+        if (eds.length) s.push({ t: editoresTexto(eds) + ', ' });
+        s.push({ t: f.tituloLibro || '', i: true }, { t: !vacio(f.paginas) ? ` (pp. ${rango(f.paginas)}).` : '.' });
+        if (!vacio(f.editorial)) s.push({ t: ` ${f.editorial}.` });
+        return s;
+      }
+      case 'articulo': {
+        if (vacio(f.revista)) return [];
+        const s = [{ t: ' ' }, { t: f.revista, i: true }];
+        if (!vacio(f.volumen)) { s.push({ t: ', ' }, { t: String(f.volumen), i: true }); if (!vacio(f.numero)) s.push({ t: `(${f.numero})` }); }
+        if (!vacio(f.paginas)) s.push({ t: ', ' + rango(f.paginas) }); else if (!vacio(f.numeroArticulo)) s.push({ t: `, Artículo ${f.numeroArticulo}` });
+        s.push({ t: '.' }); return s;
+      }
+      case 'web': return !vacio(f.sitio) && !autorEsSitio(f, f.sitio) ? [{ t: ` ${f.sitio}.` }] : [];
+      case 'youtube': return [{ t: ' YouTube.' }];
+    }
+    return [];
+  }
+  function elementoEnlace(f) {
+    if (!vacio(f.doi)) return [{ t: ' ' + normalizarDOI(f.doi) }];
+    if (vacio(f.url)) return [];
+    if (f.tipo === 'web' && f.contenidoCambiante && f.fechaConsulta && f.fechaConsulta.anio) return [{ t: ` Recuperado el ${fechaLarga(f.fechaConsulta)}, de ${f.url}` }];
+    return [{ t: ' ' + f.url }];
+  }
+  function advertencias(f) {
+    const a = []; const aut = autoresValidos(f);
+    if (vacio(f.titulo)) a.push('Falta el título.');
+    if (!aut.length) a.push('Sin autor: el título pasa al lugar del autor. Verifica que no haya una persona u organización responsable.');
+    if (!f.fecha || !f.fecha.anio) a.push('Sin fecha: se usa "s.f.". Revisa el pie de página o los metadatos antes de aceptarlo.');
+    if (pareceTipoTitulo(f.titulo || '')) a.push('El título parece estar en Tipo Título. APA usa tipo oración: mayúscula inicial y nombres propios.');
+    if (f.tipo === 'articulo' && vacio(f.doi)) a.push('Artículo sin DOI: búscalo en crossref.org antes de usar la URL.');
+    if (f.tipo === 'articulo' && vacio(f.revista)) a.push('Falta el nombre de la revista.');
+    if (f.tipo === 'capitulo' && vacio(f.tituloLibro)) a.push('Falta el título del libro.');
+    if (f.tipo === 'web' && f.contenidoCambiante && !(f.fechaConsulta && f.fechaConsulta.anio)) a.push('Contenido que cambia: agrega la fecha de consulta.');
+    if (vacio(f.doi) && vacio(f.url) && (f.tipo === 'web' || f.tipo === 'youtube')) a.push('Falta la URL.');
+    return a;
+  }
+  function referencia(fIn) {
+    const fb = fIn.fecha || {};
+    // Libros, capítulos y artículos llevan solo el año; web y video, la fecha completa
+    const fecha0 = ['libro', 'capitulo', 'articulo'].includes(fIn.tipo) ? { anio: fb.anio, sufijo: fb.sufijo } : fb;
+    const f = { ...fIn, autores: autoresValidos(fIn), fecha: fecha0 };
+    const titulo = elementoTitulo(f); const fecha = `(${textoFecha(f.fecha)}).`;
+    const segs = f.autores.length === 0 ? [...titulo, { t: ' ' + fecha }] : [{ t: `${autoresRef(f.autores)} ${fecha} ` }, ...titulo];
+    segs.push(...elementoFuente(f), ...elementoEnlace(f));
+    return { segmentos: segs, html: aHTML(segs), texto: aTexto(segs), advertencias: advertencias(fIn) };
+  }
+
+  const textoLocalizador = l => { if (!l || vacio(l.valor)) return ''; switch (l.tipo) { case 'p': return 'p. ' + l.valor; case 'pp': return 'pp. ' + rango(l.valor); case 'parr': return 'párr. ' + l.valor; default: return l.valor; } };
+  const obraIndependiente = f => ['libro', 'web', 'youtube'].includes(f.tipo);
+  function nombreCita(f, o) {
+    const a = autoresValidos(f);
+    if (!a.length) { const t = o.tituloAbreviado || f.titulo || 'Sin título'; return { segs: obraIndependiente(f) ? [{ t, i: true }] : [{ t: `“${t}”` }] }; }
+    if (a.length === 1 && a[0].tipo === 'grupo' && !vacio(a[0].abreviatura)) return o.primeraVez ? { segs: [{ t: a[0].nombre }], abrev: a[0].abreviatura } : { segs: [{ t: a[0].abreviatura }] };
+    if (a.length === 1) return { segs: [{ t: apellidoCita(a[0]) }] };
+    if (a.length === 2) return { segs: [{ t: `${apellidoCita(a[0])} y ${apellidoCita(a[1])}` }] };
+    return { segs: [{ t: `${apellidoCita(a[0])} et al.` }] };
+  }
+  function citaEnTexto(f, o = {}) {
+    const { segs: nombre, abrev } = nombreCita(f, o); const anio = anioCita(f.fecha);
+    const lt = textoLocalizador(o.localizador); const loc = lt ? ', ' + lt : '';
+    const segs = (o.modalidad || 'parentetica') === 'parentetica'
+      ? [{ t: '(' }, ...nombre, { t: `${abrev ? ` [${abrev}]` : ''}, ${anio}${loc})` }]
+      : [...nombre, { t: ` (${abrev ? abrev + ', ' : ''}${anio}${loc})` }];
+    return { segmentos: segs, html: aHTML(segs), texto: aTexto(segs) };
+  }
+  const LIMITE = 40;
+  function citaTextual(texto, f, o = {}) {
+    const limpio = String(texto).trim().replace(/^["“«]+|["”»]+$/g, '').trim();
+    const palabras = contarPalabras(limpio); const modalidad = o.modalidad || 'parentetica';
+    const verbo = o.verbo || 'señala'; const lt = textoLocalizador(o.localizador); const adv = [];
+    if (!lt) adv.push('Las citas textuales llevan localizador: página, párrafo o minuto.');
+    const par = () => citaEnTexto(f, { ...o, modalidad: 'parentetica' }).segmentos;
+    const nar = () => citaEnTexto(f, { ...o, modalidad: 'narrativa', localizador: null }).segmentos;
+    if (palabras < LIMITE) {
+      const cuerpo = limpio.replace(/\.$/, '');
+      const segs = modalidad === 'parentetica' ? [{ t: `“${cuerpo}” ` }, ...par(), { t: '.' }] : [...nar(), { t: ` ${verbo} que “${cuerpo}”${lt ? ` (${lt})` : ''}.` }];
+      return { tipo: 'corta', palabras, segmentos: segs, html: aHTML(segs), texto: aTexto(segs), advertencias: adv };
+    }
+    const bt = conPunto(limpio); let intro = null, bloque;
+    if (modalidad === 'parentetica') bloque = [{ t: bt + ' ' }, ...par()];
+    else { intro = [...nar(), { t: ` ${verbo}:` }]; bloque = [{ t: bt + (lt ? ` (${lt})` : '') }]; }
+    const html = (intro ? `<p class="cita-intro">${aHTML(intro)}</p>` : '') + `<blockquote class="cita-bloque">${aHTML(bloque)}</blockquote>`;
+    return { tipo: 'larga', palabras, intro, segmentos: bloque, html, texto: (intro ? aTexto(intro) + '\n' : '') + aTexto(bloque), advertencias: adv };
+  }
+  function parafrasis(f, o = {}) { return citaEnTexto(f, o); }
+
+  const cmp = (x, y) => x.localeCompare(y, 'es', { sensitivity: 'base' });
+  const claveAutor = f => { const a = autoresValidos(f); return a.length ? autoresRef(a) : (f.titulo || ''); };
+  function asignarSufijos(fs) {
+    const g = new Map();
+    for (const f of fs) { const k = claveAutor(f).toLowerCase() + '|' + ((f.fecha && f.fecha.anio) || 'sf'); g.set(k, [...(g.get(k) || []), f]); }
+    const r = new Map();
+    for (const grupo of g.values()) {
+      if (grupo.length < 2) { r.set(grupo[0], { ...grupo[0], fecha: { ...(grupo[0].fecha || {}), sufijo: undefined } }); continue; }
+      [...grupo].sort((a, b) => cmp(a.titulo || '', b.titulo || '')).forEach((f, i) => r.set(f, { ...f, fecha: { ...(f.fecha || {}), sufijo: String.fromCharCode(97 + i) } }));
+    }
+    return fs.map(f => r.get(f));
+  }
+  const ordenar = fs => [...fs].sort((a, b) => cmp(claveAutor(a), claveAutor(b)) || ((a.fecha || {}).anio || 0) - ((b.fecha || {}).anio || 0) || cmp((a.fecha || {}).sufijo || '', (b.fecha || {}).sufijo || '') || cmp(a.titulo || '', b.titulo || ''));
+
+  return { MESES, aHTML, aTexto, esc, contarPalabras, normalizarIniciales, referencia, citaEnTexto, citaTextual, parafrasis, textoLocalizador, asignarSufijos, ordenar, autoresValidos, anioCita, LIMITE, vacio };
+})();
+/* ===== Detección de URL y lectura de metadatos (sin conexión) ===== */
+const Extractor = (() => {
+  const PALABRAS_GRUPO = /\b(universidad|university|ministerio|ministry|organizaci[oó]n|organization|instituto|institute|asociaci[oó]n|association|fundaci[oó]n|foundation|centro|center|centre|departamento|department|agencia|agency|consejo|council|sociedad|society|gobierno|government|naciones|nations|news|press|editorial|redacci[oó]n|academy|academia|inc\.?|ltd\.?|s\.a\.|corp\.?|team|equipo|comisi[oó]n|commission|oficina|office|facultad|escuela|school|college|biblioteca|library|museo|museum|wikipedia|youtube|google|microsoft|mozilla|w3c|mdn)\b/i;
+
+  function detectarURL(txt) {
+    const s = String(txt || '').trim(); const r = { tipo: 'web', url: s };
+    if (!s) return null;
+    const doi = s.match(/(10\.\d{4,9}\/[^\s"<>]+)/);
+    const isbn = s.replace(/[-\s]/g, '').match(/^(?:ISBN:?)?(97[89]\d{10}|\d{9}[\dXx])$/i);
+    if (isbn) return { tipo: 'libro', isbn: isbn[1] };
+    if (/^(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.be)\//i.test(s)) {
+      const id = (s.match(/[?&]v=([\w-]{11})/) || s.match(/youtu\.be\/([\w-]{11})/) || s.match(/shorts\/([\w-]{11})/) || [])[1];
+      return { tipo: 'youtube', url: id ? `https://www.youtube.com/watch?v=${id}` : s };
+    }
+    if (doi && (/doi\.org/i.test(s) || /^doi:/i.test(s) || /^10\./.test(s))) return { tipo: 'articulo', doi: doi[1].replace(/[.,;]$/, '') };
+    try {
+      const u = new URL(/^https?:\/\//i.test(s) ? s : 'https://' + s);
+      r.url = u.href;
+      const f = u.pathname.match(/\/(20\d{2}|19\d{2})\/(\d{1,2})\/(\d{1,2})\//);
+      if (f) r.fecha = { anio: +f[1], mes: +f[2], dia: +f[3] };
+      if (doi) { r.tipo = 'articulo'; r.doi = doi[1]; }
+    } catch { return null; }
+    return r;
+  }
+
+  /** "Pérez García, Juan" | "Juan Pérez García" | "Universidad X" → Autor */
+  function parsearNombre(raw) {
+    const s = String(raw || '').replace(/\s+/g, ' ').replace(/^(por|by)\s+/i, '').trim();
+    if (!s) return null;
+    if (PALABRAS_GRUPO.test(s) || !/\s|,/.test(s)) return { tipo: 'grupo', nombre: s, abreviatura: '' };
+    if (s.includes(',')) { const [ap, nom] = s.split(',').map(x => x.trim()); return { tipo: 'persona', apellido: ap, iniciales: APA.normalizarIniciales(nom) }; }
+    const t = s.split(' ');
+    const nNombres = t.length >= 4 ? 2 : 1; // 3 palabras: 1 nombre + 2 apellidos (uso hispano)
+    return { tipo: 'persona', apellido: t.slice(nNombres).join(' '), iniciales: APA.normalizarIniciales(t.slice(0, nNombres).join(' ')) };
+  }
+
+  function parsearFecha(v) {
+    if (!v) return null; const s = String(v).trim();
+    let m = s.match(/^(\d{4})(?:[-/](\d{1,2})(?:[-/](\d{1,2}))?)?/);
+    if (m) return { anio: +m[1], mes: m[2] ? +m[2] : undefined, dia: m[3] ? +m[3] : undefined };
+    m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/); if (m) return { anio: +m[3], mes: +m[2], dia: +m[1] };
+    const d = new Date(s); if (!isNaN(d)) return { anio: d.getFullYear(), mes: d.getMonth() + 1, dia: d.getDate() };
+    m = s.match(/(19|20)\d{2}/); return m ? { anio: +m[0] } : null;
+  }
+
+  /** Lee el código fuente pegado (Ctrl+U → copiar todo) */
+  function desdeHTML(html, base = {}) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const meta = (...names) => { for (const n of names) { const el = doc.querySelector(`meta[name="${n}" i], meta[property="${n}" i], meta[itemprop="${n}" i]`); if (el && el.getAttribute('content')) return el.getAttribute('content').trim(); } return ''; };
+    const metas = n => [...doc.querySelectorAll(`meta[name="${n}" i]`)].map(e => e.getAttribute('content')).filter(Boolean);
+    const out = { ...base }; const hallados = [];
+
+    // JSON-LD
+    let ld = null;
+    for (const sc of doc.querySelectorAll('script[type="application/ld+json"]')) {
+      try {
+        let j = JSON.parse(sc.textContent); const lista = Array.isArray(j) ? j : (j['@graph'] || [j]);
+        ld = lista.find(o => /Article|Posting|Report|VideoObject|Book|Chapter|WebPage|Scholarly/i.test([].concat(o['@type'] || '').join(' '))) || ld;
+      } catch {}
+    }
+    const cAut = metas('citation_author');
+    if (cAut.length) { out.autores = cAut.map(parsearNombre).filter(Boolean); hallados.push('autores'); }
+    else if (ld && ld.author) { out.autores = [].concat(ld.author).map(a => parsearNombre(typeof a === 'string' ? a : a.name)).filter(Boolean); hallados.push('autores'); }
+    else {
+      const ytCanal = doc.querySelector('[itemprop="author"] link[itemprop="name"]');
+      const a = ytCanal ? ytCanal.getAttribute('content') : meta('author', 'article:author', 'dc.creator', 'DC.creator');
+      if (ytCanal && a) { out.autores = [{ tipo: 'grupo', nombre: a, abreviatura: '' }]; hallados.push('canal'); }
+      else if (a && !/^https?:/.test(a)) { out.autores = [parsearNombre(a)]; hallados.push('autor'); }
+    }
+    const titulo = meta('citation_title', 'dc.title', 'og:title', 'twitter:title', 'title') || (ld && (ld.headline || ld.name)) || (doc.querySelector('title') || {}).textContent || '';
+    if (titulo) { out.titulo = titulo.replace(/\s+[-|–]\s+(YouTube)$/i, '').trim(); hallados.push('título'); }
+    const fecha = parsearFecha(meta('citation_publication_date', 'citation_date', 'citation_online_date', 'article:published_time', 'datePublished', 'uploadDate', 'dc.date', 'date', 'pubdate') || (ld && (ld.datePublished || ld.uploadDate || ld.dateCreated)));
+    if (fecha) { out.fecha = fecha; hallados.push('fecha'); }
+    const sitio = meta('og:site_name', 'citation_publisher', 'application-name') || (ld && ld.publisher && ld.publisher.name) || '';
+    if (sitio) { out.sitio = sitio; out.editorial = meta('citation_publisher') || out.editorial; hallados.push('sitio'); }
+    const revista = meta('citation_journal_title');
+    if (revista) { out.tipo = 'articulo'; out.revista = revista; hallados.push('revista'); }
+    const vol = meta('citation_volume'), num = meta('citation_issue'), p1 = meta('citation_firstpage'), p2 = meta('citation_lastpage');
+    if (vol) out.volumen = vol; if (num) out.numero = num; if (p1) out.paginas = p2 ? `${p1}-${p2}` : p1;
+    const doi = meta('citation_doi', 'dc.identifier', 'prism.doi');
+    if (doi && /10\.\d{4,}/.test(doi)) { out.doi = doi.replace(/^doi:/i, ''); hallados.push('DOI'); }
+    const canon = (doc.querySelector('link[rel="canonical"]') || {}).href || meta('og:url');
+    if (canon && !out.url && !/^about:/.test(canon)) out.url = canon;
+    if (/youtube\.com|youtu\.be/i.test(out.url || canon || '') || meta('og:video:url')) out.tipo = out.tipo === 'articulo' ? 'articulo' : 'youtube';
+    // Texto visible (para ordenarlo con Claude si hace falta)
+    doc.querySelectorAll('script,style,noscript,nav,footer,header,aside,form,svg').forEach(n => n.remove());
+    const raiz = doc.querySelector('article') || doc.querySelector('main') || doc.body;
+    const texto = raiz ? raiz.textContent.replace(/\s+/g, ' ').trim().slice(0, 8000) : '';
+    return { datos: out, hallados, texto };
+  }
+  return { detectarURL, desdeHTML, parsearNombre, parsearFecha };
+})();
+/* ===== Aplicación ===== */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const nuevoId = () => (crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+const val = (sel, raiz = document) => { const el = raiz.querySelector(sel); return el ? el.value.trim() : ''; };
+const num = v => { const n = parseInt(v, 10); return isNaN(n) ? undefined : n; };
+const plano = o => JSON.parse(JSON.stringify(o));
+const CAMPOS = { libro: ['edicion', 'editorial'], capitulo: ['editores', 'tituloLibro', 'paginas', 'editorial'], articulo: ['revista', 'volumen', 'numero', 'paginas', 'numeroArticulo'], web: ['sitio', 'contenidoCambiante', 'fechaConsulta'], youtube: [] };
+const NOMBRE_TIPO = { libro: 'Libro', capitulo: 'Capítulo', articulo: 'Artículo', web: 'Página web', youtube: 'Video' };
+
+const S = { proyectos: [], fuentes: [], citas: [], proyecto: null, editando: null, citaFuente: null };
+
+/* ---------- Aviso ---------- */
+let tAviso;
+function avisar(msg) { const a = $('#aviso'); a.textContent = msg; a.classList.add('visible'); clearTimeout(tAviso); tAviso = setTimeout(() => a.classList.remove('visible'), 2600); }
+
+/* ---------- Almacenamiento: cuenta (db) o navegador ---------- */
+const Almacen = {
+  modo: 'local', db: null, uid: null,
+  leerLocal() { try { return JSON.parse(localStorage.getItem('apa7-datos') || 'null'); } catch { return null; } },
+  guardarLocal() { try { localStorage.setItem('apa7-datos', JSON.stringify({ proyectos: S.proyectos, fuentes: S.fuentes, citas: S.citas })); localStorage.setItem('apa7-proyecto', S.proyecto || ''); } catch {} },
+  ruta(col, id) { return `data/users/${this.uid}/${col}/${id}`; },
+  async poner(col, obj) {
+    this.guardarLocal();
+    if (this.modo !== 'db') return;
+    try { await this.db.doc(this.ruta(col, obj.id)).set(plano(obj)); }
+    catch (e) { avisar(e && e.code === 'quota_exceeded' ? 'Se alcanzó el límite de guardado de la cuenta.' : 'No se pudo guardar en tu cuenta; quedó en este navegador.'); }
+  },
+  async borrar(col, id) {
+    this.guardarLocal();
+    if (this.modo !== 'db') return;
+    try { await this.db.doc(this.ruta(col, id)).delete(); } catch {}
+  },
+  async conectar() {
+    if (!window.claude || !window.claude.use) return;
+    try {
+      const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+      if (!db || !user) return;
+      const uid = await user.id(); if (!uid) return;
+      this.db = db; this.uid = uid;
+      const leer = async n => (await db.collection(`data/users/${uid}/${n}`).get()).docs.map(d => d.data());
+      const [proyectos, fuentes, citas] = await Promise.all([leer('proyectos'), leer('fuentes'), leer('citas')]);
+      this.modo = 'db';
+      if (!proyectos.length && !fuentes.length && (S.fuentes.length || S.citas.length)) {
+        for (const p of S.proyectos) await this.poner('proyectos', p);
+        for (const f of S.fuentes) await this.poner('fuentes', f);
+        for (const c of S.citas) await this.poner('citas', c);
+      } else if (proyectos.length || fuentes.length) {
+        S.proyectos = proyectos; S.fuentes = fuentes; S.citas = citas;
+        this.guardarLocal();
+      }
+      estado('db');
+      asegurarProyecto(); renderTodo();
+    } catch { estado('local'); }
+  }
+};
+function estado(modo) { const e = $('#estado'); e.dataset.modo = modo; e.textContent = modo === 'db' ? 'Guardado en tu cuenta' : 'Guardado en este navegador'; }
+
+/* ---------- Proyectos ---------- */
+function asegurarProyecto() {
+  if (!S.proyectos.length) { const p = { id: nuevoId(), nombre: 'Mi primer trabajo', creado: Date.now() }; S.proyectos.push(p); Almacen.poner('proyectos', p); }
+  if (!S.proyectos.some(p => p.id === S.proyecto)) S.proyecto = S.proyectos[0].id;
+}
+const proyectoActual = () => S.proyectos.find(p => p.id === S.proyecto);
+const fuentesProyecto = () => S.fuentes.filter(f => f.proyectoId === S.proyecto);
+function renderProyectos() {
+  const sel = $('#selProyecto');
+  sel.innerHTML = [...S.proyectos].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(p => `<option value="${p.id}">${APA.esc(p.nombre)}</option>`).join('');
+  sel.value = S.proyecto;
+}
+let modoDialogo = 'nuevo';
+function abrirDialogo(modo) {
+  modoDialogo = modo; const d = $('#dlgProyecto');
+  $('#dlgTitulo').textContent = modo === 'nuevo' ? 'Nuevo proyecto' : 'Renombrar proyecto';
+  $('#dlgOk').textContent = modo === 'nuevo' ? 'Crear' : 'Guardar nombre';
+  $('#dlgNombre').value = modo === 'nuevo' ? '' : (proyectoActual() || {}).nombre || '';
+  if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  setTimeout(() => $('#dlgNombre').focus(), 30);
+}
+function cerrarDialogo() { const d = $('#dlgProyecto'); if (d.close) d.close(); else d.removeAttribute('open'); }
+function confirmarDialogo() {
+  const nombre = $('#dlgNombre').value.trim(); if (!nombre) { $('#dlgNombre').focus(); return; }
+  if (modoDialogo === 'nuevo') { const p = { id: nuevoId(), nombre, creado: Date.now() }; S.proyectos.push(p); S.proyecto = p.id; Almacen.poner('proyectos', p); avisar('Proyecto creado'); }
+  else { const p = proyectoActual(); p.nombre = nombre; Almacen.poner('proyectos', p); avisar('Nombre guardado'); }
+  cerrarDialogo(); renderTodo();
+}
+
+/* Botón que pide un segundo clic para confirmar */
+function dobleClic(btn, textoConfirmar, accion) {
+  if (btn.dataset.armado) { delete btn.dataset.armado; btn.textContent = btn.dataset.orig; accion(); return; }
+  btn.dataset.orig = btn.textContent; btn.dataset.armado = '1'; btn.textContent = textoConfirmar;
+  setTimeout(() => { if (btn.dataset.armado) { delete btn.dataset.armado; btn.textContent = btn.dataset.orig; } }, 3500);
+}
+
+/* ---------- Formulario de fuente ---------- */
+function filaAutor(tipo, datos = {}, destino = 'autores') {
+  const d = document.createElement('div'); d.className = 'autor'; d.dataset.tipo = tipo;
+  const uid = nuevoId().slice(0, 8);
+  if (tipo === 'grupo') {
+    d.innerHTML = `<span class="tag">Organización o canal</span>
+      <div><label class="etq" for="n${uid}">Nombre completo</label><input type="text" class="a-nombre" id="n${uid}" value="${APA.esc(datos.nombre || '')}"></div>
+      <div><label class="etq" for="s${uid}">Sigla (opcional)</label><input type="text" class="a-abrev" id="s${uid}" value="${APA.esc(datos.abreviatura || '')}" placeholder="OMS"></div>`;
+  } else {
+    d.innerHTML = `<span class="tag">${destino === 'editores' ? 'Editor' : 'Persona'}</span>
+      <div><label class="etq" for="a${uid}">Apellido(s)</label><input type="text" class="a-apellido" id="a${uid}" value="${APA.esc(datos.apellido || '')}" placeholder="Pérez García"></div>
+      <div><label class="etq" for="i${uid}">Nombre o iniciales</label><input type="text" class="a-iniciales" id="i${uid}" value="${APA.esc(datos.iniciales || '')}" placeholder="Juan Carlos · J. C."></div>
+      ${destino === 'autores' ? `<div class="solo-yt"><label class="etq" for="u${uid}">Nombre del canal, si es distinto</label><input type="text" class="a-usuario" id="u${uid}" value="${APA.esc(datos.usuario || '')}"></div>` : ''}`;
+  }
+  const ctrl = document.createElement('div'); ctrl.className = 'ctrl';
+  ctrl.innerHTML = `<button type="button" data-accion="subir" aria-label="Subir">↑</button><button type="button" data-accion="quitar" aria-label="Quitar">×</button>`;
+  d.appendChild(ctrl);
+  return d;
+}
+function leerPersonas(cont, conUsuario) {
+  return [...cont.querySelectorAll('.autor')].map(r => r.dataset.tipo === 'grupo'
+    ? { tipo: 'grupo', nombre: val('.a-nombre', r), abreviatura: val('.a-abrev', r) }
+    : { tipo: 'persona', apellido: val('.a-apellido', r), iniciales: val('.a-iniciales', r), usuario: conUsuario ? val('.a-usuario', r) : '' })
+    .filter(a => a.tipo === 'grupo' ? a.nombre : a.apellido);
+}
+const tipoActual = () => ($('input[name=tipo]:checked') || {}).value || 'web';
+function mostrarCampos() {
+  const t = tipoActual(); $('#formFuente').dataset.tipo = t;
+  $$('[data-para]').forEach(el => { el.hidden = !el.dataset.para.split(' ').includes(t); });
+  $('#etqTitulo').textContent = { libro: 'Título del libro', capitulo: 'Título del capítulo', articulo: 'Título del artículo', web: 'Título de la página', youtube: 'Título del video' }[t];
+  $('#wrapConsulta').hidden = !(t === 'web' && $('#f-cambiante').checked);
+}
+function leerFormulario() {
+  const tipo = tipoActual(); const fc = $('#f-consulta').value;
+  const f = {
+    tipo, autores: leerPersonas($('#autores'), tipo === 'youtube'),
+    fecha: { anio: num($('#f-anio').value), mes: (tipo === 'web' || tipo === 'youtube') ? num($('#f-mes').value) : undefined, dia: (tipo === 'web' || tipo === 'youtube') ? num($('#f-dia').value) : undefined },
+    titulo: val('#f-titulo'), doi: val('#f-doi'), url: val('#f-url'),
+    edicion: num($('#f-edicion').value), editorial: val('#f-editorial'), editores: leerPersonas($('#editores'), false),
+    tituloLibro: val('#f-tituloLibro'), paginas: val('#f-paginas'), revista: val('#f-revista'), volumen: val('#f-volumen'),
+    numero: val('#f-numero'), numeroArticulo: val('#f-numeroArticulo'), sitio: val('#f-sitio'),
+    contenidoCambiante: $('#f-cambiante').checked,
+    fechaConsulta: fc ? { anio: +fc.slice(0, 4), mes: +fc.slice(5, 7), dia: +fc.slice(8, 10) } : undefined,
+    etiquetas: val('#f-etiquetas').split(',').map(s => s.trim()).filter(Boolean), notas: val('#f-notas'),
+    citada: !$('#f-consultada').checked,
+  };
+  const todos = new Set(Object.values(CAMPOS).flat());
+  for (const k of todos) if (!CAMPOS[tipo].includes(k)) delete f[k];
+  return f;
+}
+function cargarFormulario(f) {
+  const radio = $(`input[name=tipo][value="${f.tipo || 'web'}"]`); if (radio) radio.checked = true;
+  $('#autores').innerHTML = ''; (f.autores || []).forEach(a => $('#autores').appendChild(filaAutor(a.tipo, a, 'autores')));
+  $('#editores').innerHTML = ''; (f.editores || []).forEach(a => $('#editores').appendChild(filaAutor(a.tipo, a, 'editores')));
+  const fe = f.fecha || {};
+  $('#f-anio').value = fe.anio || ''; $('#f-mes').value = fe.mes || ''; $('#f-dia').value = fe.dia || '';
+  const set = (id, v) => { $(id).value = v == null ? '' : v; };
+  set('#f-titulo', f.titulo); set('#f-doi', f.doi); set('#f-url', f.url); set('#f-edicion', f.edicion); set('#f-editorial', f.editorial);
+  set('#f-tituloLibro', f.tituloLibro); set('#f-paginas', f.paginas); set('#f-revista', f.revista); set('#f-volumen', f.volumen);
+  set('#f-numero', f.numero); set('#f-numeroArticulo', f.numeroArticulo); set('#f-sitio', f.sitio);
+  $('#f-cambiante').checked = !!f.contenidoCambiante;
+  const c = f.fechaConsulta; $('#f-consulta').value = c && c.anio ? `${c.anio}-${String(c.mes || 1).padStart(2, '0')}-${String(c.dia || 1).padStart(2, '0')}` : '';
+  set('#f-etiquetas', (f.etiquetas || []).join(', ')); set('#f-notas', f.notas);
+  $('#f-consultada').checked = f.citada === false;
+  mostrarCampos(); actualizarVista();
+}
+/** Mezcla datos extraídos. Con forzar, lo leído reemplaza lo escrito. */
+function aplicarDatos(d, forzar = false) {
+  const actual = leerFormulario();
+  const m = { ...actual, tipo: d.tipo || actual.tipo };
+  const vacio = v => v == null || v === '' || (Array.isArray(v) && !v.length);
+  for (const k of ['autores', 'titulo', 'doi', 'url', 'sitio', 'revista', 'volumen', 'numero', 'paginas', 'numeroArticulo', 'editorial', 'edicion', 'tituloLibro', 'editores'])
+    if (!vacio(d[k]) && (forzar || vacio(m[k]))) m[k] = d[k];
+  if (d.fecha && d.fecha.anio && (forzar || !(actual.fecha || {}).anio)) m.fecha = d.fecha;
+  if (!m.editores) m.editores = [];
+  cargarFormulario(m);
+}
+function limpiarFormulario() {
+  S.editando = null; $('#tituloRef').textContent = 'Nueva referencia'; $('#btnGuardar').textContent = 'Guardar en la biblioteca';
+  $('#urlEntrada').value = ''; $('#detectado').textContent = ''; $('#fuenteHTML').value = ''; $('#textoLibre').value = '';
+  cargarFormulario({ tipo: tipoActual(), autores: [{ tipo: 'persona' }], fecha: {} });
+}
+
+const envolverRef = html => `<p style="font-family:'Times New Roman',Times,serif;font-size:12pt;line-height:2;margin:0 0 0 1.27cm;text-indent:-1.27cm">${html}</p>`;
+function actualizarVista() {
+  const f = leerFormulario(); const r = APA.referencia(f);
+  const vacio = !f.titulo && !f.autores.length;
+  $('#prevRef').innerHTML = vacio ? '<span class="ref-vacia">La referencia aparece aquí mientras completas los datos.</span>' : r.html;
+  $('#prevPar').innerHTML = vacio ? '' : APA.citaEnTexto(f, { primeraVez: true }).html;
+  $('#prevNar').innerHTML = vacio ? '' : APA.citaEnTexto(f, { modalidad: 'narrativa', primeraVez: true }).html;
+  $('#rotTipo').textContent = NOMBRE_TIPO[f.tipo];
+  const adv = vacio ? [] : r.advertencias;
+  $('#notasTitulo').hidden = !adv.length;
+  $('#prevAdv').innerHTML = adv.map(a => `<li>${APA.esc(a)}</li>`).join('');
+  return { f, r };
+}
+
+/* ---------- Detección y lectura de datos ---------- */
+const EN_CLAUDE = !!window.claude;
+// En Netlify el lector vive en el mismo sitio (/api/lector). Si usas Cloudflare, se configura en "Lector de enlaces".
+const LECTOR_PREDETERMINADO = /^https?:$/.test(location.protocol) ? '/api/lector' : '';
+const lectorURL = () => { try { return localStorage.getItem('apa7-proxy') || LECTOR_PREDETERMINADO; } catch { return LECTOR_PREDETERMINADO; } };
+const informar = t => { $('#detectado').textContent = t; };
+const sinHTML = s => String(s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+
+function detectar() {
+  const d = Extractor.detectarURL($('#urlEntrada').value);
+  if (!d) { informar('No reconozco ese enlace. Revisa que esté completo.'); return null; }
+  // Un enlace nuevo empieza una referencia nueva (se conservan etiquetas, notas y destino)
+  const previo = leerFormulario();
+  cargarFormulario({ tipo: d.tipo, autores: [], fecha: d.fecha || {}, url: d.url || '', doi: d.doi || '', etiquetas: previo.etiquetas, notas: previo.notas, citada: previo.citada });
+  informar(d.isbn ? `ISBN ${d.isbn}.` : d.tipo === 'youtube' ? 'Video de YouTube.' : d.doi ? 'DOI detectado.' : 'Página web.');
+  return d;
+}
+
+async function pedirJSON(url) {
+  const r = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (r.status === 404) { const e = new Error('404'); e.noEncontrado = true; throw e; }
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+const personasCR = xs => (xs || []).map(a => a.family ? { tipo: 'persona', apellido: a.family, iniciales: APA.normalizarIniciales(a.given || '') } : { tipo: 'grupo', nombre: a.name || '', abreviatura: '' }).filter(a => a.apellido || a.nombre);
+
+/** DOI → Crossref (y DataCite si no está ahí) */
+async function desdeDOI(doi) {
+  try {
+    const m = (await pedirJSON('https://api.crossref.org/works/' + encodeURIComponent(doi))).message;
+    const t = m.type || '';
+    const cont = sinHTML((m['container-title'] || [])[0]);
+    const tipo = t === 'journal-article' ? 'articulo' : t === 'book-chapter' ? 'capitulo' : /book|monograph/.test(t) ? 'libro' : cont ? 'articulo' : 'web';
+    let titulo = sinHTML((m.title || [])[0]); const sub = sinHTML((m.subtitle || [])[0]);
+    if (sub && !titulo.toLowerCase().includes(sub.toLowerCase())) titulo += ': ' + sub;
+    const partes = ((m['published-print'] || m['published-online'] || m.published || m.issued || {})['date-parts'] || [])[0] || [];
+    const d = { tipo, titulo, autores: personasCR(m.author), doi: m.DOI || doi, fecha: partes[0] ? { anio: partes[0], mes: partes[1], dia: partes[2] } : undefined };
+    if (tipo === 'articulo') Object.assign(d, { revista: cont, volumen: m.volume || '', numero: m.issue || '', paginas: m.page || '', numeroArticulo: m.page ? '' : (m['article-number'] || '') });
+    if (tipo === 'capitulo') Object.assign(d, { tituloLibro: cont, editores: personasCR(m.editor), paginas: m.page || '', editorial: m.publisher || '' });
+    if (tipo === 'libro') Object.assign(d, { editorial: m.publisher || '', edicion: +m['edition-number'] || undefined });
+    if (tipo === 'web') d.sitio = m.publisher || '';
+    if (!d.autores.length && m.editor) d.autores = personasCR(m.editor);
+    return { datos: d, origen: 'Crossref' };
+  } catch (e) {
+    if (!e.noEncontrado) throw e;
+    const a = (await pedirJSON('https://api.datacite.org/dois/' + encodeURIComponent(doi))).data.attributes;
+    const autores = (a.creators || []).map(c => c.familyName ? { tipo: 'persona', apellido: c.familyName, iniciales: APA.normalizarIniciales(c.givenName || '') } : { tipo: 'grupo', nombre: c.name || '', abreviatura: '' });
+    const general = ((a.types || {}).resourceTypeGeneral || '').toLowerCase();
+    const tipo = general === 'book' ? 'libro' : general.includes('journal') ? 'articulo' : 'web';
+    return { datos: { tipo, titulo: ((a.titles || [])[0] || {}).title || '', autores, fecha: a.publicationYear ? { anio: +a.publicationYear } : undefined, doi, editorial: a.publisher, sitio: a.publisher }, origen: 'DataCite' };
+  }
+}
+
+/** ISBN → Open Library, y Google Books si no aparece */
+async function desdeISBN(isbn) {
+  try {
+    const b = (await pedirJSON(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`))['ISBN:' + isbn];
+    if (b) {
+      const f = Extractor.parsearFecha(b.publish_date);
+      return { datos: { tipo: 'libro', titulo: b.title + (b.subtitle ? ': ' + b.subtitle : ''), autores: (b.authors || []).map(x => Extractor.parsearNombre(x.name)).filter(Boolean), fecha: f ? { anio: f.anio } : undefined, editorial: ((b.publishers || [])[0] || {}).name || '' }, origen: 'Open Library' };
+    }
+  } catch {}
+  const v = (((await pedirJSON(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`)).items || [])[0] || {}).volumeInfo;
+  if (!v) return null;
+  return { datos: { tipo: 'libro', titulo: v.title + (v.subtitle ? ': ' + v.subtitle : ''), autores: (v.authors || []).map(Extractor.parsearNombre).filter(Boolean), fecha: v.publishedDate ? { anio: parseInt(v.publishedDate, 10) } : undefined, editorial: v.publisher || '' }, origen: 'Google Books' };
+}
+
+/* PDF: pdf.js se carga solo la primera vez que hace falta */
+let pdfjsListo = null;
+function cargarScript(src) { return new Promise((ok, mal) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => mal(new Error('No se pudo cargar el lector de PDF.')); document.head.appendChild(s); }); }
+function cargarPDFjs() {
+  if (!pdfjsListo) pdfjsListo = (async () => {
+    const base = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+    await cargarScript(base + 'pdf.min.js');
+    await cargarScript(base + 'pdf.worker.min.js'); // corre en la página: no necesita un Worker aparte
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js';
+    return window.pdfjsLib;
+  })().catch(e => { pdfjsListo = null; throw e; });
+  return pdfjsListo;
+}
+const tituloInutil = t => !t || t.length < 4 || /\.(docx?|pdf|tex|indd|odt|rtf)$/i.test(t) || /^(microsoft word|untitled|sin t[ií]tulo|document\d*|presentaci[oó]n\d*|diapositiva)/i.test(t);
+function partirAutores(s) {
+  s = String(s || ''); let p = s.split(/\s*;\s*|\s+(?:and|y|&)\s+/);
+  if (p.length === 1 && (s.match(/,/g) || []).length >= 2) p = s.split(/\s*,\s*/);
+  return p.map(t => t.trim()).filter(t => t && /\s|,/.test(t) && !/^(user|usuario|admin|administrador|owner|author|autor)\b/i.test(t));
+}
+async function leerPDF(buf, url = '') {
+  const pdfjs = await cargarPDFjs();
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise;
+  const meta = await doc.getMetadata().catch(() => ({}));
+  const info = meta.info || {}; const xmp = meta.metadata;
+  const x = (...ks) => { for (const k of ks) { try { const v = xmp && xmp.get(k); if (v && (!Array.isArray(v) || v.length)) return v; } catch {} } return null; };
+  let texto = '', candidatos = [];
+  for (let i = 1; i <= Math.min(2, doc.numPages); i++) {
+    const pg = await doc.getPage(i); const alto = pg.getViewport({ scale: 1 }).height;
+    const items = (await pg.getTextContent()).items.filter(it => it.str && it.str.trim());
+    texto += items.map(it => it.str + (it.hasEOL ? '\n' : ' ')).join('') + '\n';
+    if (i === 1) candidatos = items.map(it => ({ s: it.str, h: Math.abs(it.transform[3]), arriba: it.transform[5] > alto * 0.35 }));
+  }
+  const hallados = []; const d = { url };
+  let titulo = x('dc:title') || info.Title; if (Array.isArray(titulo)) titulo = titulo[0];
+  if (tituloInutil(titulo)) {
+    const arriba = candidatos.filter(c => c.arriba && c.s.trim().length > 1);
+    const max = Math.max(0, ...arriba.map(c => c.h));
+    titulo = arriba.filter(c => c.h >= max * 0.92).map(c => c.s).join(' ').replace(/\s+/g, ' ').trim();
+    if (titulo.length > 250) titulo = '';
+  }
+  if (titulo) { d.titulo = titulo.trim(); hallados.push('título'); }
+  const creadores = x('dc:creator'); const autores = (Array.isArray(creadores) ? creadores : partirAutores(creadores || info.Author)).map(Extractor.parsearNombre).filter(Boolean);
+  if (autores.length) { d.autores = autores; hallados.push('autores'); }
+  const doi = x('prism:doi', 'pdfx:doi') || ((texto.match(/\b(10\.\d{4,9}\/[^\s"<>]+)/) || [])[1] || '').replace(/[.,;)\]]+$/, '');
+  if (doi) { d.doi = doi; hallados.push('DOI'); }
+  const revista = x('prism:publicationName', 'prism:publicationname');
+  if (revista) { d.revista = revista; d.volumen = x('prism:volume') || ''; d.numero = x('prism:number') || ''; const p1 = x('prism:startingPage', 'prism:startingpage'), p2 = x('prism:endingPage', 'prism:endingpage'); if (p1) d.paginas = p2 ? `${p1}-${p2}` : p1; hallados.push('revista'); }
+  let fecha = Extractor.parsearFecha(x('prism:coverDate', 'prism:publicationDate', 'prism:coverdate'));
+  let fechaDudosa = false;
+  if (!fecha) { const c = (texto.match(/(?:©|\(c\)|copyright)\s*((?:19|20)\d{2})/i) || [])[1]; if (c) fecha = { anio: +c }; }
+  if (!fecha && info.CreationDate) { const m = String(info.CreationDate).match(/D:(\d{4})(\d{2})?(\d{2})?/); if (m) { fecha = { anio: +m[1], mes: m[2] ? +m[2] : undefined, dia: m[3] ? +m[3] : undefined }; fechaDudosa = true; } }
+  if (fecha) { d.fecha = fecha; hallados.push(fechaDudosa ? 'fecha del archivo' : 'fecha'); }
+  d.tipo = revista ? 'articulo' : doc.numPages >= 60 ? 'libro' : 'web';
+  return { datos: d, hallados, texto: texto.replace(/[ \t]+/g, ' ').slice(0, 8000), fechaDudosa, paginas: doc.numPages };
+}
+
+/** Pide la URL al lector de enlaces y decide si es PDF o HTML */
+async function desdeLector(url) {
+  const base = lectorURL(); if (!base) return null;
+  let r;
+  try { r = await fetch(base.replace(/\/+$/, '') + '?url=' + encodeURIComponent(url)); }
+  catch { throw new Error('No hubo respuesta del lector de enlaces. Revisa su dirección en "Lector de enlaces".'); }
+  if (r.status === 404) throw new Error('El lector de enlaces no está publicado en este sitio. Si subiste la carpeta arrastrándola a Netlify, la función no se publica: vuelve a publicar desde GitHub o con la terminal.');
+  if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(t && !/^\s*</.test(t) ? t : 'El lector respondió con el código ' + r.status + '.'); }
+  const ct = (r.headers.get('Content-Type') || '').toLowerCase(); const final = r.headers.get('X-Url-Final') || url;
+  if (ct.includes('application/json')) {
+    const j = await r.json();
+    if (j.tipo === 'youtube') {
+      const f = j.fecha ? j.fecha.split('-').map(Number) : null;
+      const hallados = [j.canal && 'canal', j.titulo && 'título', f && 'fecha'].filter(Boolean);
+      return { datos: { tipo: 'youtube', url: j.url, titulo: j.titulo, autores: j.canal ? [{ tipo: 'grupo', nombre: j.canal, abreviatura: '' }] : [], fecha: f ? { anio: f[0], mes: f[1], dia: f[2] } : undefined }, hallados, origen: 'YouTube', sinFecha: !f, aviso: j.aviso };
+    }
+  }
+  if (ct.includes('pdf') || /\.pdf($|[?#])/i.test(final)) return { ...(await leerPDF(await r.arrayBuffer(), url)), origen: 'PDF' };
+  const res = Extractor.desdeHTML(await r.text(), {});
+  if (!res.datos.url || !/^https?:/.test(res.datos.url)) res.datos.url = url;
+  if (!res.datos.tipo) res.datos.tipo = /youtube\.com|youtu\.be/i.test(url) ? 'youtube' : 'web';
+  return { ...res, origen: 'la página' };
+}
+
+/** Aplica un resultado y, si trae DOI, lo completa con Crossref */
+async function aplicarLectura(res, extra = '') {
+  aplicarDatos(res.datos, true);
+  let msg = `Leído desde ${res.origen}: ${res.hallados && res.hallados.length ? res.hallados.join(', ') : 'datos bibliográficos'}.`;
+  if (res.datos.doi && !EN_CLAUDE && res.origen !== 'Crossref' && res.origen !== 'DataCite') {
+    try { const cr = await desdeDOI(res.datos.doi); if (cr) { aplicarDatos({ ...cr.datos, url: res.datos.url }, true); msg += ` Completado con ${cr.origen} a partir del DOI.`; } } catch {}
+  }
+  if (res.texto) { $('#textoLibre').value = res.texto; }
+  if (res.fechaDudosa) msg += ' La fecha es la de creación del archivo: confírmala.';
+  if (res.sinFecha) msg += ' YouTube no entregó la fecha de publicación: cópiala de la descripción del video.';
+  if (res.aviso) msg += ' ' + res.aviso;
+  const f = leerFormulario();
+  if (f.tipo === 'web' && !f.sitio) msg += ' Falta el nombre del sitio.';
+  informar(msg + ' ' + extra + 'Revisa los datos antes de guardar.');
+}
+
+async function leerDatos() {
+  const d = detectar(); if (!d) return;
+  if (EN_CLAUDE) { informar($('#detectado').textContent + ' Para completar autor, título y fecha, sube el PDF o pega el código fuente de la página.'); $('#detImportar').open = true; return; }
+  const btn = $('#btnDetectar'); btn.disabled = true; btn.textContent = 'Leyendo…';
+  try {
+    if (d.isbn) {
+      const r = await desdeISBN(d.isbn);
+      if (r) await aplicarLectura({ ...r, hallados: ['título', 'autores', 'año', 'editorial'] }); else informar(`No encontré el ISBN ${d.isbn}. Completa los datos desde la página de créditos del libro.`);
+    } else if (d.doi) {
+      const r = await desdeDOI(d.doi);
+      await aplicarLectura({ ...r, datos: { ...r.datos, url: '' }, hallados: ['autores', 'título', 'fecha', r.datos.revista ? 'revista' : 'editorial'] });
+    } else if (d.tipo === 'youtube') {
+      let listo = false;
+      if (lectorURL()) {
+        try { await aplicarLectura(await desdeLector(d.url)); listo = true; }
+        catch (e) { if (/no existe|eliminado|No reconozco/.test(e.message || '')) throw e; }
+      }
+      if (!listo) {
+        const j = await pedirJSON('https://noembed.com/embed?url=' + encodeURIComponent(d.url));
+        if (j.error) throw new Error('YouTube no devolvió datos de ese video.');
+        aplicarDatos({ tipo: 'youtube', titulo: j.title, autores: j.author_name ? [{ tipo: 'grupo', nombre: j.author_name, abreviatura: '' }] : [] }, true);
+        informar('Leído: canal y título. No se pudo obtener la fecha de publicación: cópiala de la página del video.');
+      }
+    } else if (lectorURL()) {
+      await aplicarLectura(await desdeLector(d.url));
+    } else {
+      informar('Para leer páginas web y PDF desde la URL hace falta el lector de enlaces. DOI e ISBN ya funcionan sin él.');
+      $('#detAjustes').open = true;
+    }
+  } catch (e) {
+    informar(e.noEncontrado ? 'Ese DOI no figura en Crossref ni en DataCite. Revisa que esté completo.' : (e.message && !/^HTTP|Failed to fetch|NetworkError|Load failed/.test(e.message) ? e.message : 'No se pudo conectar. Revisa tu conexión y vuelve a intentar.'));
+  } finally { btn.disabled = false; btn.textContent = 'Leer datos'; }
+}
+
+async function leerArchivo(file) {
+  if (!file) return;
+  informar('Leyendo ' + file.name + '…');
+  try {
+    if (/pdf$/i.test(file.type) || /\.pdf$/i.test(file.name)) {
+      const res = await leerPDF(await file.arrayBuffer(), $('#f-url').value.trim());
+      await aplicarLectura({ ...res, origen: 'el PDF' });
+    } else {
+      const res = Extractor.desdeHTML(await file.text(), {});
+      if (!res.hallados.length) { informar('El archivo no declara metadatos. Completa los datos a mano o usa "Ordenar con Claude".'); $('#textoLibre').value = res.texto; return; }
+      await aplicarLectura({ ...res, origen: 'la página guardada' });
+    }
+    if (Sample) $('#detImportar').open = true;
+  } catch (e) { informar(e.message || 'No se pudo leer el archivo.'); }
+}
+function leerHTML() {
+  const html = $('#fuenteHTML').value;
+  if (!html.trim()) { avisar('Pega primero el código fuente de la página.'); return; }
+  const { datos, hallados } = Extractor.desdeHTML(html, {});
+  if (!datos.url) delete datos.url;
+  if (!hallados.length) { avisar('No encontré metadatos. Prueba con el texto visible o completa a mano.'); return; }
+  aplicarLectura({ datos, hallados, origen: 'el código fuente' });
+  avisar('Datos cargados en el formulario');
+}
+let Sample = null;
+async function ordenarConClaude() {
+  const texto = $('#textoLibre').value.trim(); const btn = $('#btnClaude');
+  if (!texto) { avisar('Pega primero el texto de la página.'); return; }
+  btn.disabled = true; btn.textContent = 'Leyendo…';
+  const prompt = `Eres un asistente bibliográfico. A partir del contenido que sigue, extrae los metadatos para una referencia APA 7.
+No inventes nada: si un dato no aparece en el contenido, usa null.
+Si el título está en Tipo Título, pásalo a tipo oración (mayúscula inicial, después de dos puntos y en nombres propios).
+Para personas, separa apellidos y nombres (en nombres hispanos, los dos apellidos van en "apellido").
+Responde SOLO con un objeto JSON, sin texto adicional, con esta forma:
+{"tipo":"libro|capitulo|articulo|web|youtube","autores":[{"tipo":"persona","apellido":"","nombre":""},{"tipo":"grupo","nombre":""}],"anio":null,"mes":null,"dia":null,"titulo":null,"sitio":null,"revista":null,"volumen":null,"numero":null,"paginas":null,"editorial":null,"edicion":null,"doi":null}
+
+Enlace (puede estar vacío): ${$('#urlEntrada').value.trim()}
+Tipo elegido por el usuario: ${tipoActual()}
+
+Contenido:
+${texto.slice(0, 12000)}`;
+  try {
+    const j = await Sample.json(prompt, { modelTier: 'quick' });
+    const d = { tipo: CAMPOS[j.tipo] ? j.tipo : undefined, titulo: j.titulo, sitio: j.sitio, revista: j.revista, volumen: j.volumen, numero: j.numero, paginas: j.paginas, editorial: j.editorial, edicion: j.edicion, doi: j.doi };
+    if (Array.isArray(j.autores)) d.autores = j.autores.filter(Boolean).map(a => a.tipo === 'grupo' ? { tipo: 'grupo', nombre: a.nombre || '', abreviatura: '' } : { tipo: 'persona', apellido: a.apellido || '', iniciales: APA.normalizarIniciales(a.nombre || '') });
+    if (j.anio) d.fecha = { anio: +j.anio, mes: j.mes ? +j.mes : undefined, dia: j.dia ? +j.dia : undefined };
+    aplicarDatos(d, true);
+    $('#detectado').textContent = 'Claude completó los campos. Compáralos con la fuente antes de guardar.';
+  } catch (e) {
+    if (e && e.code === 'not_granted') { $('#zonaClaude').hidden = true; avisar('Sin permiso para usar Claude en esta página.'); }
+    else if (e && e.code === 'rate_limited') avisar('Demasiadas consultas seguidas. Espera un momento.');
+    else if (e && e.code !== 'cancelled') avisar('No se pudo leer la respuesta. Prueba con menos texto.');
+  } finally { btn.disabled = false; btn.textContent = 'Ordenar con Claude'; }
+}
+
+/* ---------- Guardar fuente ---------- */
+function guardarFuente() {
+  const f = leerFormulario();
+  if (!f.titulo) { avisar('Falta el título.'); $('#f-titulo').focus(); return; }
+  const previa = S.editando ? S.fuentes.find(x => x.id === S.editando) : null;
+  if (!previa && f.doi) {
+    const doiN = f.doi.toLowerCase().replace(/^(https?:\/\/)?(dx\.)?doi\.org\//, '').replace(/^doi:/, '');
+    if (fuentesProyecto().some(x => x.doi && x.doi.toLowerCase().includes(doiN))) { avisar('Ese DOI ya está en este proyecto.'); return; }
+  }
+  const obj = { ...f, id: previa ? previa.id : nuevoId(), proyectoId: previa ? previa.proyectoId : S.proyecto, creado: previa ? previa.creado : Date.now(), actualizado: Date.now() };
+  if (previa) S.fuentes[S.fuentes.indexOf(previa)] = obj; else S.fuentes.push(obj);
+  Almacen.poner('fuentes', obj);
+  avisar(previa ? 'Referencia actualizada' : 'Guardada en la biblioteca');
+  S.citaFuente = obj.id;
+  limpiarFormulario(); renderTodo();
+}
+function editarFuente(id) {
+  const f = S.fuentes.find(x => x.id === id); if (!f) return;
+  S.editando = id; cargarFormulario(f);
+  $('#tituloRef').textContent = 'Editar referencia'; $('#btnGuardar').textContent = 'Guardar cambios';
+  irA('referencia');
+}
+function borrarFuente(id) {
+  S.fuentes = S.fuentes.filter(f => f.id !== id); Almacen.borrar('fuentes', id);
+  S.citas.filter(c => c.fuenteId === id).forEach(c => Almacen.borrar('citas', c.id));
+  S.citas = S.citas.filter(c => c.fuenteId !== id);
+  Almacen.guardarLocal(); avisar('Referencia eliminada'); renderTodo();
+}
+
+/* ---------- Copiar ---------- */
+async function copiarHTML(html, texto) {
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([texto], { type: 'text/plain' }) })]);
+      avisar('Copiado con formato: pégalo en Word o Docs'); return;
+    }
+  } catch {}
+  const d = document.createElement('div'); d.contentEditable = 'true'; d.innerHTML = html;
+  Object.assign(d.style, { position: 'fixed', left: '-9999px', top: '0' }); document.body.appendChild(d);
+  const r = document.createRange(); r.selectNodeContents(d); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  let ok = false; try { ok = document.execCommand('copy'); } catch {}
+  sel.removeAllRanges(); d.remove();
+  avisar(ok ? 'Copiado con formato: pégalo en Word o Docs' : 'Tu navegador no dejó copiar. Selecciona el texto y usa Ctrl+C.');
+}
+async function copiarTexto(texto) {
+  try { await navigator.clipboard.writeText(texto); avisar('Texto copiado'); return; } catch {}
+  const t = document.createElement('textarea'); t.value = texto; Object.assign(t.style, { position: 'fixed', left: '-9999px' });
+  document.body.appendChild(t); t.select(); let ok = false; try { ok = document.execCommand('copy'); } catch {} t.remove();
+  avisar(ok ? 'Texto copiado' : 'Selecciona el texto y usa Ctrl+C.');
+}
+
+/* ---------- Descargas ---------- */
+async function descargar(nombre, datos) {
+  if (window.claude && window.claude.use) {
+    const dl = await window.claude.use('downloads');
+    if (!dl) { avisar('La descarga no está disponible en esta vista. Usa "Copiar con formato".'); return; }
+    try { const r = await dl.save({ filename: nombre, data: datos }); if (r.status === 'saved') avisar('Archivo guardado'); }
+    catch (e) { if (e && e.code === 'rate_limited') avisar('Ya hay una descarga pendiente de confirmar.'); else if (e && e.code !== 'declined') avisar('No se pudo descargar el archivo.'); }
+    return;
+  }
+  const url = URL.createObjectURL(datos instanceof Blob ? datos : new Blob([datos]));
+  const a = document.createElement('a'); a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* ---------- Citar ---------- */
+function renderMedidor(n, larga, real) {
+  const cont = $('#medidor .celdas');
+  if (!cont.children.length) cont.innerHTML = '<i></i>'.repeat(APA.LIMITE);
+  [...cont.children].forEach((c, i) => c.classList.toggle('on', i < n));
+  $('#medidor').toggleAttribute('data-larga', larga);
+  $('#medidorTxt').textContent = `${real} / ${APA.LIMITE} palabras`;
+  $('#medidorTipo').textContent = larga ? 'Cita larga: va en bloque' : 'Cita corta: va en el párrafo';
+}
+function opcionesCita() {
+  const lt = $('#locTipo').value;
+  return {
+    tipo: ($('input[name=citaTipo]:checked') || {}).value || 'textual',
+    modalidad: ($('input[name=citaModo]:checked') || {}).value || 'parentetica',
+    localizador: lt ? { tipo: lt, valor: $('#locValor').value.trim() } : null,
+    primeraVez: $('#citaPrimera').checked,
+    verbo: $('#citaVerbo').value.trim() || 'señala',
+  };
+}
+function generarCita(f, o, texto) {
+  if (o.tipo === 'parafrasis') { const r = APA.parafrasis(f, o); return { ...r, html: `<p class="linea">${r.html}</p>`, htmlCopia: r.html, tipoCita: 'Paráfrasis', advertencias: [] }; }
+  const r = APA.citaTextual(texto || '', f, o);
+  const htmlCopia = r.tipo === 'larga'
+    ? (r.intro ? `<p style="font-family:'Times New Roman';font-size:12pt;line-height:2;margin:0">${APA.aHTML(r.intro)}</p>` : '') + `<p style="font-family:'Times New Roman';font-size:12pt;line-height:2;margin:0 0 0 1.27cm">${APA.aHTML(r.segmentos)}</p>`
+    : r.html;
+  return { ...r, html: r.tipo === 'larga' ? r.html : `<p class="linea">${r.html}</p>`, htmlCopia, tipoCita: r.tipo === 'larga' ? 'Cita larga' : 'Cita corta' };
+}
+let ultimaCita = null;
+function actualizarCita() {
+  const fs = fuentesProyecto();
+  $('#citaVacia').hidden = fs.length > 0; $('#citaContenido').hidden = fs.length === 0;
+  if (!fs.length) return;
+  const f = S.fuentes.find(x => x.id === $('#citaFuente').value) || fs[0]; S.citaFuente = f.id;
+  const o = opcionesCita(); const texto = $('#citaTexto').value;
+  const textual = o.tipo === 'textual';
+  $('#wrapTextoCita').hidden = !textual; $('#medidor').hidden = !textual;
+  $('#wrapVerbo').hidden = !(textual && o.modalidad === 'narrativa');
+  const a = APA.autoresValidos(f); $('#wrapPrimera').hidden = !(a.length === 1 && a[0].tipo === 'grupo' && a[0].abreviatura);
+  const n = APA.contarPalabras(texto.replace(/^["“«]+|["”»]+$/g, '')); renderMedidor(Math.min(n, APA.LIMITE), n >= APA.LIMITE, n);
+  const r = (textual && !texto.trim()) ? null : generarCita(f, o, texto);
+  ultimaCita = r ? { r, f, o, texto } : null;
+  $('#prevCita').innerHTML = r ? r.html : '<p class="linea ref-vacia">Pega el fragmento para ver la cita.</p>';
+  $('#rotCita').textContent = r ? r.tipoCita : '';
+  $('#advCita').innerHTML = r ? r.advertencias.map(x => `<li>${APA.esc(x)}</li>`).join('') : '';
+  renderCitasDeFuente(f);
+}
+function renderCitasDeFuente(f) {
+  const cs = S.citas.filter(c => c.fuenteId === f.id).sort((a, b) => b.creado - a.creado);
+  $('#citasDeFuente').innerHTML = cs.length ? cs.map(c => {
+    const r = generarCita(f, c, c.texto);
+    return `<li><div style="font:15px/1.6 var(--f-apa)">${r.tipo === 'larga' ? '[Bloque] ' : ''}${APA.aHTML(r.tipo === 'larga' ? r.segmentos : r.segmentos)}</div>
+      <div class="acciones" style="margin-top:6px">${c.nota ? `<span class="ayuda" style="margin:0 8px 0 0">${APA.esc(c.nota)}</span>` : ''}
+      <button class="btn chico" type="button" data-copiar-cita="${c.id}">Copiar</button><button class="btn chico fantasma peligro" type="button" data-borrar-cita="${c.id}">Eliminar</button></div></li>`;
+  }).join('') : '<li class="ayuda" style="margin:0">Ninguna todavía.</li>';
+}
+function guardarCita() {
+  if (!ultimaCita) { avisar('Pega primero el fragmento citado.'); return; }
+  const { f, o, texto } = ultimaCita;
+  const c = { id: nuevoId(), fuenteId: f.id, proyectoId: f.proyectoId, tipo: o.tipo, modalidad: o.modalidad, localizador: o.localizador, primeraVez: o.primeraVez, verbo: o.verbo, texto: o.tipo === 'textual' ? texto.trim() : '', nota: $('#citaNota').value.trim(), creado: Date.now() };
+  S.citas.push(c); Almacen.poner('citas', c);
+  $('#citaTexto').value = ''; $('#citaNota').value = ''; avisar('Cita guardada'); renderTodo();
+}
+function copiarCitaGuardada(id) {
+  const c = S.citas.find(x => x.id === id); const f = c && S.fuentes.find(x => x.id === c.fuenteId); if (!f) return;
+  const r = generarCita(f, c, c.texto); copiarHTML(r.htmlCopia, r.texto);
+}
+
+/* ---------- Biblioteca ---------- */
+function renderBiblioteca() {
+  const p = proyectoActual(); const todas = fuentesProyecto();
+  const q = $('#buscar').value.trim().toLowerCase(); const t = $('#filtroTipo').value;
+  $('#bajadaBiblio').textContent = `${p ? p.nombre : ''} · ${todas.length} ${todas.length === 1 ? 'fuente' : 'fuentes'} · ${S.citas.filter(c => c.proyectoId === S.proyecto).length} citas guardadas`;
+  $('#btnBorrarProyecto').hidden = S.proyectos.length < 2;
+  const lista = APA.ordenar(APA.asignarSufijos(todas)).filter(f => (!t || f.tipo === t) && (!q || (APA.referencia(f).texto + ' ' + (f.etiquetas || []).join(' ') + ' ' + (f.notas || '')).toLowerCase().includes(q)));
+  if (!todas.length) { $('#listaBiblio').innerHTML = `<div class="vacio"><strong>La biblioteca está vacía</strong>Cada referencia que guardes aparece acá, lista para citar.<div class="acciones" style="justify-content:center"><button class="btn primario" type="button" data-ir="referencia">Crear la primera</button></div></div>`; return; }
+  if (!lista.length) { $('#listaBiblio').innerHTML = `<div class="vacio"><strong>Sin resultados</strong>Prueba con otra palabra o quita el filtro de tipo.</div>`; return; }
+  $('#listaBiblio').innerHTML = lista.map(f => {
+    const r = APA.referencia(f); const cs = S.citas.filter(c => c.fuenteId === f.id);
+    return `<div class="item">
+      <p class="ref">${r.html}</p>
+      <div class="botones">
+        <button class="btn chico" type="button" data-citar="${f.id}">Citar</button>
+        <button class="btn chico" type="button" data-editar="${f.id}">Editar</button>
+        <button class="btn chico" type="button" data-copiar="${f.id}">Copiar</button>
+        <button class="btn chico fantasma" type="button" data-alternar="${f.id}">${f.citada === false ? 'Pasar a referencias' : 'Pasar a bibliografía'}</button>
+        <button class="btn chico fantasma peligro" type="button" data-borrar="${f.id}">Eliminar</button>
+      </div>
+      <div class="meta"><span class="pill">${NOMBRE_TIPO[f.tipo]}</span>${f.citada === false ? '<span class="pill biblio">Bibliografía</span>' : ''}${(f.etiquetas || []).map(e => `<span class="pill">${APA.esc(e)}</span>`).join('')}<span>${cs.length} ${cs.length === 1 ? 'cita' : 'citas'}</span>${r.advertencias.length ? `<span>· ${r.advertencias.length} ${r.advertencias.length === 1 ? 'aviso' : 'avisos'}</span>` : ''}${f.notas ? `<span>· ${APA.esc(f.notas)}</span>` : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- Lista final ---------- */
+function secciones() {
+  const fs = fuentesProyecto();
+  const refs = APA.ordenar(APA.asignarSufijos(fs.filter(f => f.citada !== false))).map(APA.referencia);
+  const bib = APA.ordenar(APA.asignarSufijos(fs.filter(f => f.citada === false))).map(APA.referencia);
+  return [{ titulo: 'Referencias', items: refs }, { titulo: 'Bibliografía', items: bib }].filter(s => s.items.length);
+}
+function renderLista() {
+  const ss = secciones();
+  $('#hojaLista').innerHTML = ss.length ? ss.map((s, i) => `<p class="titulo-lista"${i ? ' style="margin-top:2em"' : ''}>${s.titulo}</p>` + s.items.map(r => `<p class="ref-apa">${r.html}</p>`).join('')).join('')
+    : '<p class="ref-vacia" style="text-align:center">La lista se arma sola a medida que guardas referencias en este proyecto.</p>';
+}
+function htmlLista() {
+  return secciones().map((s, i) => `<p style="font-family:'Times New Roman';font-size:12pt;line-height:2;text-align:center;font-weight:bold;margin:${i ? '24pt' : '0'} 0 0">${s.titulo}</p>` + s.items.map(r => envolverRef(r.html)).join('')).join('');
+}
+const textoLista = () => secciones().map(s => [s.titulo, ...s.items.map(r => r.texto)].join('\n')).join('\n\n');
+async function descargarDocx() {
+  const ss = secciones(); if (!ss.length) { avisar('No hay referencias en este proyecto.'); return; }
+  if (!window.docx) { avisar('No se cargó el generador de Word. Usa "Copiar con formato".'); return; }
+  const { Document, Paragraph, TextRun, Packer, AlignmentType, PageBreak } = window.docx;
+  const fuente = { font: 'Times New Roman', size: 24 };
+  const hijos = [];
+  ss.forEach((s, i) => {
+    hijos.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 480, after: 0 }, children: [...(i ? [new PageBreak()] : []), new TextRun({ text: s.titulo, bold: true, ...fuente })] }));
+    s.items.forEach(r => hijos.push(new Paragraph({ indent: { left: 720, hanging: 720 }, spacing: { line: 480, after: 0 }, children: r.segmentos.filter(g => g.t).map(g => new TextRun({ text: g.t, italics: !!g.i, ...fuente })) })));
+  });
+  const doc = new Document({ creator: 'Gestor APA 7', title: 'Referencias', sections: [{ properties: { page: { margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } }, children: hijos }] });
+  const blob = await Packer.toBlob(doc);
+  const nombre = ((proyectoActual() || {}).nombre || 'referencias').replace(/[\\/:*?"<>|]+/g, '').trim() || 'referencias';
+  descargar(`${nombre} - Referencias APA.docx`, blob);
+}
+
+/* ---------- Verificador ---------- */
+const normAnio = s => /s\.\s?f/i.test(s) ? 's.f.' + ((s.match(/-([a-z])$/) || [])[1] ? '-' + s.match(/-([a-z])$/)[1] : '') : s;
+const sinTildes = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+function extraerCitas(texto) {
+  const out = [];
+  for (const m of texto.matchAll(/\(([^()]{2,400})\)/g)) {
+    for (const parte of m[1].split(';')) {
+      const mm = parte.match(/^\s*(?:v[eé]ase\s+(?:tambi[eé]n\s+)?|ver\s+|p\.\s?ej\.,?\s*|e\.\s?g\.,?\s*)?(.+?),\s*((?:1[5-9]|20)\d{2}[a-z]?|s\.\s?f\.(?:-[a-z])?)(?=[\s,)]|$)/i);
+      if (mm && !/^\d/.test(mm[1].trim())) out.push({ nombres: mm[1].trim(), anio: normAnio(mm[2]), texto: '(' + parte.trim() + ')' });
+    }
+  }
+  for (const m of texto.matchAll(/(\p{Lu}[\p{L}'’-]+(?:\s+\p{Lu}[\p{L}'’-]+)?(?:\s+(?:y|&|e)\s+\p{Lu}[\p{L}'’-]+(?:\s+\p{Lu}[\p{L}'’-]+)?|\s+et\s+al\.)?)\s+\(((?:1[5-9]|20)\d{2}[a-z]?|s\.\s?f\.)(?:,[^)]*)?\)/gu))
+    out.push({ nombres: m[1], anio: normAnio(m[2]), texto: m[0] });
+  return out.map(c => {
+    const limpio = c.nombres.replace(/\[.*?\]/g, '').replace(/["“”«»*_]/g, '').trim();
+    const etal = /et\s+al\.?/i.test(limpio);
+    const partes = limpio.replace(/\s+et\s+al\.?/i, '').split(/\s+(?:y|&|e)\s+/);
+    return { ...c, primero: sinTildes(partes[0]), cant: etal ? 3 : partes.length, ampersand: /\s&\s/.test(c.nombres) };
+  });
+}
+function clavesFuente(f) {
+  const a = APA.autoresValidos(f);
+  if (!a.length) return [sinTildes((f.titulo || '').split(':')[0])];
+  const x = a[0];
+  if (x.tipo === 'grupo') return [sinTildes(x.nombre), ...(x.abreviatura ? [sinTildes(x.abreviatura)] : [])];
+  const ap = sinTildes(x.apellido); return [ap, ap.split(/\s+/)[0]];
+}
+function verificar() {
+  const texto = $('#textoTrabajo').value; const out = $('#resultadoVerif');
+  if (!texto.trim()) { out.innerHTML = ''; avisar('Pega el texto del trabajo.'); return; }
+  const fs = APA.asignarSufijos(fuentesProyecto().filter(f => f.citada !== false));
+  const citas = extraerCitas(texto);
+  const usadas = new Set(), huerfanas = [], etal = [], amp = [];
+  for (const c of citas) {
+    if (c.ampersand && !amp.some(a => a.texto === c.texto)) amp.push(c);
+    const match = fs.find(f => APA.anioCita(f.fecha) === c.anio && clavesFuente(f).some(k => k && (c.primero === k || c.primero.startsWith(k) || k.startsWith(c.primero))));
+    if (!match) { if (!huerfanas.some(h => h.texto === c.texto)) huerfanas.push(c); continue; }
+    usadas.add(match.id);
+    const n = APA.autoresValidos(match).length;
+    if (n >= 3 && c.cant < 3) etal.push({ c, esperado: APA.citaEnTexto(match).texto });
+    if (n <= 2 && c.cant >= 3) etal.push({ c, esperado: APA.citaEnTexto(match).texto });
+  }
+  const sinCitar = fs.filter(f => !usadas.has(f.id));
+  const bloque = (titulo, n, items) => `<h3>${titulo} <span class="n">${n}</span></h3>` + (n ? `<ul>${items}</ul>` : '<p class="ok">Nada que corregir.</p>');
+  out.innerHTML = `<p class="ayuda">Se encontraron ${citas.length} ${citas.length === 1 ? 'cita' : 'citas'} en el texto y hay ${fs.length} ${fs.length === 1 ? 'referencia' : 'referencias'} en el proyecto.</p>`
+    + bloque('Citas sin referencia', huerfanas.length, huerfanas.map(c => `<li><code>${APA.esc(c.texto)}</code> no coincide con ninguna fuente del proyecto. Revisa apellido y año, o agrega la referencia.</li>`).join(''))
+    + bloque('Referencias que nunca se citan', sinCitar.length, sinCitar.map(f => `<li style="font-family:var(--f-apa)">${APA.referencia(f).html}<br><span class="ayuda">Cítala en el texto o márcala como bibliografía.</span></li>`).join(''))
+    + bloque('Uso de "et al."', etal.length, etal.map(e => `<li><code>${APA.esc(e.c.texto)}</code> → debería ser <code>${APA.esc(e.esperado)}</code></li>`).join(''))
+    + bloque('"&amp;" en lugar de "y"', amp.length, amp.map(c => `<li><code>${APA.esc(c.texto)}</code>: en textos en español se usa "y".</li>`).join(''));
+}
+
+/* ---------- Copia de seguridad ---------- */
+function exportarJSON() {
+  const datos = JSON.stringify({ app: 'gestor-apa7', version: 1, exportado: new Date().toISOString(), proyectos: S.proyectos, fuentes: S.fuentes, citas: S.citas }, null, 2);
+  descargar(`gestor-apa7-copia-${new Date().toISOString().slice(0, 10)}.json`, new Blob([datos], { type: 'application/json' }));
+}
+function importarJSON(file) {
+  const lector = new FileReader();
+  lector.onload = async () => {
+    try {
+      const d = JSON.parse(lector.result);
+      if (!Array.isArray(d.fuentes) || !Array.isArray(d.proyectos)) throw 0;
+      const ids = { p: new Set(S.proyectos.map(x => x.id)), f: new Set(S.fuentes.map(x => x.id)), c: new Set(S.citas.map(x => x.id)) };
+      let n = 0;
+      for (const p of d.proyectos) if (p.id && !ids.p.has(p.id)) { S.proyectos.push(p); await Almacen.poner('proyectos', p); }
+      for (const f of d.fuentes) if (f.id && !ids.f.has(f.id)) { S.fuentes.push(f); await Almacen.poner('fuentes', f); n++; }
+      for (const c of (d.citas || [])) if (c.id && !ids.c.has(c.id)) { S.citas.push(c); await Almacen.poner('citas', c); }
+      asegurarProyecto(); renderTodo(); avisar(`Copia cargada: ${n} fuentes nuevas`);
+    } catch { avisar('Ese archivo no es una copia del Gestor APA 7.'); }
+  };
+  lector.readAsText(file);
+}
+
+/* ---------- Navegación y render ---------- */
+function irA(panel) {
+  $$('.pestanas button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.panel === panel)));
+  $$('.panel').forEach(p => p.classList.toggle('activo', p.id === 'p-' + panel));
+  if (panel === 'cita') actualizarCita();
+  window.scrollTo({ top: 0 });
+}
+function renderSelectorCita() {
+  const fs = APA.ordenar(APA.asignarSufijos(fuentesProyecto()));
+  const sel = $('#citaFuente');
+  sel.innerHTML = fs.map(f => { const t = APA.referencia(f).texto; return `<option value="${f.id}">${APA.esc(t.length > 110 ? t.slice(0, 107) + '…' : t)}</option>`; }).join('');
+  if (fs.some(f => f.id === S.citaFuente)) sel.value = S.citaFuente;
+}
+function renderTodo() { renderProyectos(); renderSelectorCita(); actualizarCita(); renderBiblioteca(); renderLista(); Almacen.guardarLocal(); }
+
+/* ---------- Inicio ---------- */
+function iniciar() {
+  $('#f-mes').insertAdjacentHTML('beforeend', APA.MESES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join(''));
+  const guardado = Almacen.leerLocal();
+  if (guardado) { S.proyectos = guardado.proyectos || []; S.fuentes = guardado.fuentes || []; S.citas = guardado.citas || []; }
+  try { S.proyecto = localStorage.getItem('apa7-proyecto') || null; } catch {}
+  asegurarProyecto();
+  limpiarFormulario(); renderTodo();
+
+  $$('.pestanas button').forEach(b => b.addEventListener('click', () => irA(b.dataset.panel)));
+  document.addEventListener('click', e => {
+    const t = e.target.closest('button, label'); if (!t) return;
+    if (t.dataset.ir) irA(t.dataset.ir);
+    if (t.dataset.agregar) { $('#' + t.dataset.destino).appendChild(filaAutor(t.dataset.agregar, {}, t.dataset.destino)); const ins = $('#' + t.dataset.destino).lastElementChild.querySelector('input'); ins && ins.focus(); actualizarVista(); }
+    if (t.dataset.accion) { const fila = t.closest('.autor'); if (t.dataset.accion === 'quitar') fila.remove(); else if (fila.previousElementSibling) fila.parentNode.insertBefore(fila, fila.previousElementSibling); actualizarVista(); }
+    if (t.dataset.citar) { S.citaFuente = t.dataset.citar; renderSelectorCita(); irA('cita'); }
+    if (t.dataset.editar) editarFuente(t.dataset.editar);
+    if (t.dataset.copiar) { const f = S.fuentes.find(x => x.id === t.dataset.copiar); const r = APA.referencia(f); copiarHTML(envolverRef(r.html), r.texto); }
+    if (t.dataset.alternar) { const f = S.fuentes.find(x => x.id === t.dataset.alternar); f.citada = f.citada === false; Almacen.poner('fuentes', f); renderTodo(); avisar(f.citada ? 'Pasó a referencias' : 'Pasó a bibliografía'); }
+    if (t.dataset.borrar) dobleClic(t, '¿Eliminar? Clic otra vez', () => borrarFuente(t.dataset.borrar));
+    if (t.dataset.copiarCita) copiarCitaGuardada(t.dataset.copiarCita);
+    if (t.dataset.borrarCita) dobleClic(t, '¿Seguro?', () => { S.citas = S.citas.filter(c => c.id !== t.dataset.borrarCita); Almacen.borrar('citas', t.dataset.borrarCita); renderTodo(); });
+  });
+  $('#formFuente').addEventListener('input', actualizarVista);
+  $('#formFuente').addEventListener('change', () => { mostrarCampos(); actualizarVista(); });
+  $('#btnDetectar').addEventListener('click', leerDatos);
+  $('#urlEntrada').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); leerDatos(); } });
+  $('#urlEntrada').addEventListener('paste', () => setTimeout(leerDatos, 0));
+  $('#archivoFuente').addEventListener('change', e => { leerArchivo(e.target.files[0]); e.target.value = ''; });
+  $('#notaClaude').hidden = !EN_CLAUDE; $('#detAjustes').hidden = EN_CLAUDE;
+  $('#proxyURL').value = lectorURL();
+  $('#btnProxy').addEventListener('click', () => { const v = $('#proxyURL').value.trim(); try { localStorage.setItem('apa7-proxy', v); } catch {} avisar(v ? 'Lector de enlaces guardado' : 'Lector de enlaces quitado'); });
+  $('#btnLeerHTML').addEventListener('click', leerHTML);
+  $('#btnClaude').addEventListener('click', ordenarConClaude);
+  $('#btnGuardar').addEventListener('click', guardarFuente);
+  $('#btnLimpiar').addEventListener('click', limpiarFormulario);
+  $('#btnCopiarRef').addEventListener('click', () => { const { r } = actualizarVista(); copiarHTML(envolverRef(r.html), r.texto); });
+  $('#btnCopiarRefTxt').addEventListener('click', () => copiarTexto(actualizarVista().r.texto));
+
+  $('#p-cita').addEventListener('input', actualizarCita);
+  $('#p-cita').addEventListener('change', actualizarCita);
+  $('#btnGuardarCita').addEventListener('click', guardarCita);
+  $('#btnCopiarCita').addEventListener('click', () => ultimaCita ? copiarHTML(ultimaCita.r.htmlCopia, ultimaCita.r.texto) : avisar('Pega primero el fragmento.'));
+  $('#btnCopiarCitaTxt').addEventListener('click', () => ultimaCita ? copiarTexto(ultimaCita.r.texto) : avisar('Pega primero el fragmento.'));
+
+  $('#buscar').addEventListener('input', renderBiblioteca);
+  $('#filtroTipo').addEventListener('change', renderBiblioteca);
+  $('#selProyecto').addEventListener('change', e => { S.proyecto = e.target.value; S.citaFuente = null; limpiarFormulario(); renderTodo(); });
+  $('#btnNuevoProyecto').addEventListener('click', () => abrirDialogo('nuevo'));
+  $('#btnRenombrar').addEventListener('click', () => abrirDialogo('renombrar'));
+  $('#btnBorrarProyecto').addEventListener('click', e => dobleClic(e.currentTarget, '¿Borrar proyecto y sus fuentes?', () => {
+    const id = S.proyecto;
+    S.fuentes.filter(f => f.proyectoId === id).forEach(f => Almacen.borrar('fuentes', f.id));
+    S.citas.filter(c => c.proyectoId === id).forEach(c => Almacen.borrar('citas', c.id));
+    S.fuentes = S.fuentes.filter(f => f.proyectoId !== id); S.citas = S.citas.filter(c => c.proyectoId !== id);
+    S.proyectos = S.proyectos.filter(p => p.id !== id); Almacen.borrar('proyectos', id);
+    asegurarProyecto(); renderTodo(); avisar('Proyecto eliminado');
+  }));
+  $('#dlgOk').addEventListener('click', confirmarDialogo);
+  $('#dlgCancelar').addEventListener('click', cerrarDialogo);
+  $('#dlgNombre').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); confirmarDialogo(); } });
+
+  $('#btnDocx').addEventListener('click', descargarDocx);
+  $('#btnCopiarLista').addEventListener('click', () => secciones().length ? copiarHTML(htmlLista(), textoLista()) : avisar('No hay referencias en este proyecto.'));
+  $('#btnCopiarListaTxt').addEventListener('click', () => secciones().length ? copiarTexto(textoLista()) : avisar('No hay referencias en este proyecto.'));
+  $('#btnVerificar').addEventListener('click', verificar);
+  $('#btnExportarJSON').addEventListener('click', exportarJSON);
+  $('#archivoJSON').addEventListener('change', e => { if (e.target.files[0]) importarJSON(e.target.files[0]); e.target.value = ''; });
+
+  // Capacidades opcionales: cuenta y Claude se encienden cuando responden
+  Almacen.conectar();
+  if (window.claude && window.claude.use) window.claude.use('sample').then(s => { if (s) { Sample = s; $('#zonaClaude').hidden = false; } }).catch(() => {});
+}
+document.addEventListener('DOMContentLoaded', iniciar);
+</script>
+</body></html>
